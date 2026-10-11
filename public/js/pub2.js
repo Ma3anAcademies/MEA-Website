@@ -66,7 +66,26 @@ R('/student-success/:slug', (p, q, u) => {
 });
 
 /* ---------------- RESOURCES ---------------- */
+const resAudTabs = aud => h`<div class="tabs" role="navigation" aria-label="Resource audience"><a href="#/resources" ${aud === 'parent' ? raw('aria-current="page"') : ''}>For Parents</a><a href="#/resources${qs({ aud: 'student' })}" ${aud === 'student' ? raw('aria-current="page"') : ''}>For Students</a></div>`;
+function studentResourcesView(q) {
+  const sys = q.sys || '', lvl = q.lvl || '';
+  const links = lvl ? (STUDENT_RESOURCES[lvl] || []) : [];
+  return h`<section class="sec" style="padding-top:8px"><div class="wrap">
+    <div class="sec-head left" style="margin-bottom:18px"><h2>Find study links for your level</h2><p class="mb0">Choose your education system and level to see useful revision websites for your subjects.</p></div>
+    <div class="sysopts" role="group" aria-label="Education system">${Object.values(SYS).map(s => h`<a class="sysopt" href="#/resources${qs({ aud: 'student', sys: s.id })}" aria-pressed="${sys === s.id}" style="text-decoration:none">${flag(s.id)}<span><span class="t">${s.short}</span><br><span class="s">${s.blurb}</span></span></a>`)}</div>
+    ${sys ? h`<div class="field" style="max-width:360px;margin-top:16px"><label for="res_lvl">Level</label><select class="sel" id="res_lvl" data-on="resLvl"><option value="">Choose your level</option>${SYS[sys].levels.map(l => h`<option value="${l.id}" ${lvl === l.id ? raw('selected') : ''}>${l.name} (${l.years.join(', ')})</option>`)}</select></div>` : ''}
+    ${lvl ? (links.length ? h`<div class="grid g2" style="margin-top:20px">${links.map(i => h`<a class="card link" href="${i.url}" target="_blank" rel="noopener noreferrer"><div class="row between"><div class="chips">${chip('Study link', 'chip-green', 'external-link')}</div>${ic('external-link')}</div><h3 style="margin-top:10px">${i.title}<span class="sr"> (opens in a new tab)</span></h3><p class="small muted mb0">${i.desc}</p></a>`)}</div>` : emptyState({ icon: 'search', title: 'No links yet for this level', text: 'Contact MEA and we will point you to good revision resources.' })) : ''}
+    <p class="small muted" style="margin-top:18px">These are external websites MEA does not run — always check with your teacher that content matches your exam board. Private lesson slides and homework are in <a href="#/my-mea/learning">My MEA</a> for enrolled students.</p></div></section>`;
+}
+Changes.resLvl = el => setQuery({ lvl: el.value });
 R('/resources', (p, q, u) => {
+  const aud = q.aud === 'student' ? 'student' : 'parent';
+  if (aud === 'student') {
+    return { title: 'Resources', body: h`${banner({ title: 'Resources', sub: 'Practical guidance for navigating your education journey.' })}
+    <section class="sec" style="padding-bottom:0"><div class="wrap">${resAudTabs(aud)}</div></section>
+    ${studentResourcesView(q)}
+    ${ctaBand('Need help choosing?', 'Our team can help you understand levels, subjects and exam boards.', h`${btn('Contact MEA', '/contact', 'btn-yellow')}${btn('Find a Course', '/courses' + qs({ at: 'course-finder' }), 'btn-white')}`)}` };
+  }
   const cat = q.cat || '', term = (q.q || '').toLowerCase();
   const items = [...GUIDES.map(g => ({ ...g, href: '#/resources/' + g.slug })), ...OFFICIAL_LINKS.map(o => ({ ...o, type: 'Official link', summary: 'Opens an official UK education website in a new tab.', ext: true, href: o.url }))]
     .filter(i => (!cat || i.cat === cat) && (!term || (i.title + i.summary).toLowerCase().includes(term)));
@@ -74,6 +93,7 @@ R('/resources', (p, q, u) => {
   const tcol = { Guide: 'chip-blue', Checklist: 'chip-yellow', 'Official link': 'chip-purple' };
   return {
     title: 'Resources', body: h`${banner({ title: 'Resources', sub: 'Practical guidance for navigating your child’s education journey.' })}
+    <section class="sec" style="padding-bottom:0"><div class="wrap">${resAudTabs(aud)}</div></section>
     <section class="sec" style="padding-top:8px"><div class="wrap"><div class="grid g3">${GUIDE_CATS.map(c => h`<button type="button" class="card link" data-act="resCat" data-cat="${c.id}" style="text-align:left;${cat === c.id ? 'border-color:var(--blue-d);background:var(--blue-50)' : ''}" aria-pressed="${cat === c.id}"><div class="feat"><span class="ico c-${c.color}">${ic(c.icon)}</span><div><h3>${c.name}</h3><p>${c.blurb}</p></div></div></button>`)}</div></div></section>
     ${feat && !cat && !term ? h`<section class="sec soft"><div class="wrap"><div class="card" style="display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:24px;align-items:center;background:linear-gradient(120deg,#fff,#EAF5FC)"><div><div class="small strong t-blue">Featured guide</div><h2 style="font-size:1.6rem">${feat.title}</h2><p class="muted">${feat.summary}</p>${btn('Read the full guide', '/resources/' + feat.slug, 'btn-pink', 'arrow-right')}</div><img src="${IMG.guide}" alt="A young girl in headphones writing while studying" style="border-radius:18px;max-height:230px;width:100%;object-fit:cover"></div></div></section>` : ''}
     <section class="sec"><div class="wrap"><div class="row between" style="margin-bottom:16px"><h2 style="margin:0;font-size:1.5rem">${cat ? GUIDE_CATS.find(c => c.id === cat).name : 'All resources'}</h2><div class="row">${cat ? h`<button class="btn btn-outline btn-sm" data-act="resCat" data-cat="">Show all</button>` : ''}<div class="field"><label class="sr" for="res_q">Search resources</label><input class="inp" id="res_q" type="search" placeholder="Search resources" value="${q.q || ''}" data-on="resQ" style="min-width:240px"></div></div></div>
@@ -191,25 +211,35 @@ Forms.signin = async (f, v) => {
   // Not strictly an email format: the site admin's username (set in Netlify's environment
   // variables) goes in this same field, and doesn't have to look like an email address.
   const e = {}; if (!v.email) e.email = 'Enter your email address.'; if (!v.password) e.password = 'Enter your password.'; if (!showErrors(f, e)) return;
-  if (LIVE_BACKEND) {
-    const r = await api('login', { method: 'POST', body: { email: v.email, password: v.password } });
-    if (!r.ok) {
-      if (r.status === 403 && r.data && r.data.needsVerification) { go('/account/verify-email' + qs({ email: r.data.email }), true); return; }
-      showErrors(f, { password: (r.data && r.data.error) || 'That email and password do not match. Check them and try again, or reset your password.' }); return;
+  // Visible loading state: signing in can involve several network round-trips
+  // (login + pulling the account's children/classes/invoices), which otherwise
+  // looks like the button did nothing while it waits.
+  const btnEl = f.querySelector('button[type="submit"]'), origLabel = btnEl ? btnEl.textContent : '';
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Signing in…'; btnEl.classList.add('is-loading'); }
+  const restore = () => { if (btnEl) { btnEl.disabled = false; btnEl.textContent = origLabel; btnEl.classList.remove('is-loading'); } };
+  try {
+    if (LIVE_BACKEND) {
+      const r = await api('login', { method: 'POST', body: { email: v.email, password: v.password } });
+      if (!r.ok) {
+        if (r.status === 403 && r.data && r.data.needsVerification) { go('/account/verify-email' + qs({ email: r.data.email }), true); return; }
+        restore(); showErrors(f, { password: (r.data && r.data.error) || 'That email and password do not match. Check them and try again, or reset your password.' }); return;
+      }
+      const user = mirrorSignedInUser(r.data.user);
+      if (user.role === 'parent') await mirrorChildrenFromServer(user.id);
+      if (user.role === 'teacher') await mirrorMyStudents();
+      await syncCatalog(user); await mirrorEnrolments(user); await mirrorEnquiries(user); await mirrorDirectory(user); await mirrorAllInvoices(user);
+      if (user.role === 'parent') await mirrorAllMyHomework(user.id);
+      if (user.role === 'parent') await mirrorMyInvoices();
+      signInUser(user, v.return);
+      return;
     }
-    const user = mirrorSignedInUser(r.data.user);
-    if (user.role === 'parent') await mirrorChildrenFromServer(user.id);
-    if (user.role === 'teacher') await mirrorMyStudents();
-    await syncCatalog(user); await mirrorEnrolments(user); await mirrorEnquiries(user); await mirrorDirectory(user); await mirrorAllInvoices(user);
-    if (user.role === 'parent') await mirrorAllMyHomework(user.id);
-    if (user.role === 'parent') await mirrorMyInvoices();
+    const user = S.users.find(x => x.email.toLowerCase() === v.email.toLowerCase() && !x.synthetic);
+    if (!user || user.pw !== hashPw(v.password, user.email)) { restore(); showErrors(f, { password: 'That email and password do not match. Check them and try again, or reset your password.' }); return; }
+    if (!user.verified) { go('/account/verify-email' + qs({ email: user.email, return: v.return }), true); return; }
     signInUser(user, v.return);
-    return;
+  } catch (err) {
+    restore(); showErrors(f, { password: 'Something went wrong signing you in. Please try again.' });
   }
-  const user = S.users.find(x => x.email.toLowerCase() === v.email.toLowerCase() && !x.synthetic);
-  if (!user || user.pw !== hashPw(v.password, user.email)) { showErrors(f, { password: 'That email and password do not match. Check them and try again, or reset your password.' }); return; }
-  if (!user.verified) { go('/account/verify-email' + qs({ email: user.email, return: v.return }), true); return; }
-  signInUser(user, v.return);
 };
 Actions.demoIn = t => { const u = S.users.find(x => x.role === t.dataset.role && (t.dataset.role !== 'teacher' || x.id === 't_aisha') && !x.synthetic); signInUser(u, Q.return); };
 R('/account/create', (p, q, u) => {

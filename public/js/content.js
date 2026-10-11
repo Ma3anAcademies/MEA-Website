@@ -108,6 +108,62 @@ const OFFICIAL_LINKS = [
   { title: 'Qualifications Wales', url: 'https://www.qualificationswales.org', cat: 'eng' }
 ];
 
+/* Student-facing study links, picked by the student's own level rather than
+   browsed by category. Sample curated list — editable in Admin → Content in
+   the live build, same as the parent guides above. */
+const STUDENT_RESOURCES = {
+  ks1: [
+    { title: 'BBC Bitesize – Primary', url: 'https://www.bbc.co.uk/bitesize/primary', desc: 'Short videos, games and quizzes for every primary subject.' },
+    { title: 'Oxford Owl for Home', url: 'https://www.oxfordowl.co.uk', desc: 'Free eBooks and simple activities for reading and maths at home.' },
+    { title: 'Topmarks Education', url: 'https://www.topmarks.co.uk', desc: 'Interactive games for maths, English and more, sorted by age.' }
+  ],
+  ks2: [
+    { title: 'BBC Bitesize – Primary', url: 'https://www.bbc.co.uk/bitesize/primary', desc: 'Short videos, games and quizzes for every primary subject.' },
+    { title: 'Oxford Owl for Home', url: 'https://www.oxfordowl.co.uk', desc: 'Free eBooks and activities, including help getting ready for SATs.' },
+    { title: 'Topmarks Education', url: 'https://www.topmarks.co.uk', desc: 'Interactive games for maths, English and more, sorted by age.' }
+  ],
+  ks3: [
+    { title: 'BBC Bitesize – KS3', url: 'https://www.bbc.co.uk/bitesize/levels/zbr9wmn', desc: 'Lessons and quizzes across the full KS3 curriculum.' },
+    { title: 'Oak National Academy', url: 'https://www.thenational.academy', desc: 'Free video lessons and worksheets for every KS3 subject.' },
+    { title: 'Seneca Learning', url: 'https://senecalearning.com', desc: 'Free interactive revision courses that adapt to what you know.' }
+  ],
+  gcse: [
+    { title: 'BBC Bitesize – GCSE', url: 'https://www.bbc.co.uk/bitesize/examspecs', desc: 'Revision guides matched to your exact GCSE exam board and specification.' },
+    { title: 'Save My Exams', url: 'https://www.savemyexams.com', desc: 'Exam-board-specific revision notes, questions and worked answers.' },
+    { title: 'Physics & Maths Tutor', url: 'https://www.physicsandmathstutor.com', desc: 'Free past papers, mark schemes and topic questions.' },
+    { title: 'Seneca Learning', url: 'https://senecalearning.com', desc: 'Free adaptive revision courses for every GCSE subject.' }
+  ],
+  alevel: [
+    { title: 'Save My Exams', url: 'https://www.savemyexams.com', desc: 'Exam-board-specific revision notes and practice questions for A-Level.' },
+    { title: 'Physics & Maths Tutor', url: 'https://www.physicsandmathstutor.com', desc: 'Free A-Level past papers, mark schemes and topic questions.' },
+    { title: 'BBC Bitesize – A-Level', url: 'https://www.bbc.co.uk/bitesize/examspecs', desc: 'Revision support for a growing range of A-Level subjects.' }
+  ],
+  btec: [
+    { title: 'Pearson BTEC Qualifications', url: 'https://qualifications.pearson.com/en/qualifications/btec-nationals.html', desc: 'Official specifications, sample assessments and coursework guidance.' },
+    { title: 'Save My Exams', url: 'https://www.savemyexams.com', desc: 'Revision notes for some BTEC units and related subjects.' }
+  ],
+  sprimary: [
+    { title: 'BBC Bitesize Scotland – Primary', url: 'https://www.bbc.co.uk/bitesize/primary', desc: 'Videos, games and quizzes for every primary subject.' },
+    { title: 'Education Scotland – Parentzone', url: 'https://education.gov.scot/parentzone', desc: 'Guidance for parents and children on Scottish primary education.' }
+  ],
+  s1s3: [
+    { title: 'BBC Bitesize Scotland', url: 'https://www.bbc.co.uk/bitesize', desc: 'Lessons and quizzes covering the broad general education curriculum.' },
+    { title: 'Education Scotland – Parentzone', url: 'https://education.gov.scot/parentzone', desc: 'Guidance on the Curriculum for Excellence for S1–S3.' }
+  ],
+  n5: [
+    { title: 'BBC Bitesize – National 5', url: 'https://www.bbc.co.uk/bitesize/levels/z98jmp3', desc: 'Revision guides for National 5 subjects.' },
+    { title: 'SQA Past Papers', url: 'https://www.sqa.org.uk/pastpapers/findpastpaper.htm', desc: 'Official past papers and marking instructions for National 5.' }
+  ],
+  higher: [
+    { title: 'BBC Bitesize – Higher', url: 'https://www.bbc.co.uk/bitesize/levels/zhrfr82', desc: 'Revision guides for Higher subjects.' },
+    { title: 'SQA Past Papers', url: 'https://www.sqa.org.uk/pastpapers/findpastpaper.htm', desc: 'Official past papers and marking instructions for Higher.' }
+  ],
+  adv: [
+    { title: 'SQA Past Papers', url: 'https://www.sqa.org.uk/pastpapers/findpastpaper.htm', desc: 'Official past papers and marking instructions for Advanced Higher.' },
+    { title: 'BBC Bitesize – Higher', url: 'https://www.bbc.co.uk/bitesize/levels/zhrfr82', desc: 'Many topics overlap with Higher — useful for extra revision.' }
+  ]
+};
+
 const FAQ_CATS = ['About MEA', 'Courses & levels', 'England / Scotland routes', 'Registration & accounts', 'Adding children', 'Timetables', 'Fees & payments', 'Lessons & homework', 'Technical access', 'Absence & missed classes', 'Contact & support'];
 const FAQ_SEED = [
   ['About MEA', 'What is MEA?', 'Ma3an Education Academies (MEA) is an online tuition and academic support provider for students across the UK. Live classes are taught by qualified, experienced teachers and are aligned to the UK curriculum. “Ma3an” means “Together”.'],

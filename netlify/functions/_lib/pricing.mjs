@@ -6,6 +6,8 @@
  */
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const isoAdd = (iso, n) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+/** Last day (as ISO) of the calendar month containing iso. */
+const endOfMonthISO = (iso) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCMonth(d.getUTCMonth() + 1, 0); return d.toISOString().slice(0, 10); };
 
 /** Counts how many of a class's weekly sessions fall within [fromISO, toISO],
     clamped to the class's own start/end dates. */
@@ -23,11 +25,13 @@ function countSessions(cls, fromISO, toISO) {
 }
 
 /** Lessons in the chosen billing period, counted from today (or the class's
-    own start date if that's later), for a class with the given term end. */
+    own start date if that's later), for a class with the given term end.
+    "Month" is the rest of the current calendar month, not a fixed 4-week
+    window, so it reflects how many lessons are genuinely still to come. */
 export function lessonsForPeriod(cls, period, termEnd) {
   const today = todayISO();
   if (period === "term") return countSessions(cls, today, termEnd || cls.endDate);
-  return countSessions(cls, today, isoAdd(today, 27)); // 4 weeks
+  return countSessions(cls, today, endOfMonthISO(today));
 }
 
 /** The per-lesson fee for a class: its own override, or the course's fee. */

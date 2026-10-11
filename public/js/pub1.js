@@ -23,9 +23,13 @@ function enrolLink(cl, u) {
 }
 function classCard(cl, u, year, levelLabel) {
   const co = clsCourse(cl), a = avail(cl), sc = schedText(cl), el = enrolLink(cl, u);
-  const yearChips = year ? h`${chip(year, 'chip-blue')}${levelLabel && levelLabel !== year ? chip(levelLabel, 'chip-grey') : ''}` : chip(levelName(co.level), 'chip-blue');
-  return h`<article class="ccard acc-${grpOf(co.subject)}"><div class="chips">${yearChips}${co.board ? chip(co.board, 'chip-grey') : ''}${chip(a.label, a.cls, a.icon)}</div>
-  <h3><a href="#/courses/${co.slug}">${co.title}</a></h3><div class="small muted">${subj(co.subject).name}</div>
+  // When shown as a per-year row (course finder), the year is the headline and
+  // the key-stage/level is a small secondary icon chip — not the other way round.
+  const mainTitle = year || co.title;
+  const subLine = year ? subj(co.subject).name : subj(co.subject).name;
+  const levelChip = year ? chip(levelLabel || levelName(co.level), 'chip-grey', LV_ICON[co.level] || 'layers') : chip(levelName(co.level), 'chip-blue', LV_ICON[co.level] || 'layers');
+  return h`<article class="ccard acc-${grpOf(co.subject)}"><div class="chips">${levelChip}${co.board ? chip(co.board, 'chip-grey') : ''}${chip(a.label, a.cls, a.icon)}</div>
+  <h3><a href="#/courses/${co.slug}">${mainTitle}</a></h3><div class="small muted">${subLine}</div>
   <div class="meta"><div>${ic('calendar')}<span>${sc.days}</span></div><div>${ic('clock')}<span>${sc.time} (UK time)</span></div><div>${ic('laptop')}<span>Live online classes</span></div><div>${ic('layers')}<span>${startsLater(cl) ? 'Starts ' + fmtDate(cl.startDate) : cl.term}</span></div></div>
   <div class="foot"><div class="fee">${money(classFee(cl))} <small>/ lesson</small></div>${co.trial ? chip('Trial class available', 'chip-purple', 'sparkles') : ''}</div>
   <div class="btns"><a class="btn btn-outline btn-sm" href="#/courses/${co.slug}">View Course</a>${el ? h`<a class="btn ${a.k === 'full' ? 'btn-outline-pink' : 'btn-pink'} btn-sm" href="#${el.href}">${el.label}</a>` : ''}</div></article>`;
@@ -119,7 +123,7 @@ function courseFilters() {
 R('/courses', (p, q, u) => {
   if (q.system && q.system !== S.finder.system) { S.finder = { system: q.system, year: q.year || '', subject: q.subject || '' }; save(); }
   const f = courseFilters(), sys = f.sys;
-  const banr = banner({ title: 'Courses & Subjects', sub: 'Find the right subject, level and class for your child.', img: IMG.courses, alt: 'A teenage girl with headphones writing notes while learning online', actions: h`${btn('Find a Course', '/courses' + qs({ at: 'course-finder' }), 'btn-primary', 'search')}${btn('View Timetable', '/timetables-fees', 'btn-outline')}` });
+  const banr = banner({ title: 'Courses & Subjects', sub: 'Find the right subject, level and class for your child.', img: IMG.courses, alt: 'A teenage girl with headphones writing notes while learning online', actions: h`${btn('Find a Course', '/courses' + qs({ at: 'course-finder' }), 'btn-primary', 'search')}${btn('View Timetable', '/timetables-fees', 'btn-outline')}${u && u.role === 'parent' ? btn('Add Child', '/my-mea/children/add', 'btn-outline', 'plus') : ''}` });
   const selector = h`<section class="sec" id="course-finder" style="padding-bottom:20px"><div class="wrap"><div class="sec-head left" style="margin-bottom:18px"><h2>Course Finder</h2><p class="mb0">First choose your education system, so you only see levels and classes that match your child.</p></div>
     <div class="grid g2">${Object.values(SYS).map(s => h`<button type="button" class="sysopt" data-act="setSys" data-sys="${s.id}" aria-pressed="${sys === s.id}" style="padding:20px">${flag(s.id, 56)}<span><span class="t" style="font-size:1.1rem">${s.name}</span><br><span class="s">${s.blurb}</span></span></button>`)}</div></div></section>`;
   if (!sys) return { title: 'Courses & Subjects', body: h`${banr}${selector}<section class="sec" style="padding-top:0"><div class="wrap">${emptyState({ icon: 'globe', title: 'Choose your education system to begin', text: 'Once you choose, you can browse stages and subjects, or narrow classes by year, exam board, day and availability.', action: h`<a class="btn btn-outline" href="#/resources/choosing-the-right-level">Not sure which level?</a>` })}</div></section>` };

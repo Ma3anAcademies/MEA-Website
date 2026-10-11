@@ -67,6 +67,8 @@ const todayISO = () => ukNow().date;
 const isoAdd = (iso, n) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const dowOf = iso => new Date(iso + 'T12:00:00Z').getUTCDay();
 const mondayOf = iso => { const d = dowOf(iso); return isoAdd(iso, d === 0 ? -6 : 1 - d); };
+/** Last day (as ISO) of the calendar month containing iso — e.g. 2026-02-10 -> 2026-02-28. */
+const endOfMonthISO = iso => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCMonth(d.getUTCMonth() + 1, 0); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + 'T12:00:00Z') - new Date(a + 'T12:00:00Z')) / 864e5);
 function fmtDate(iso, style = 'short') {
   const d = new Date(iso + 'T12:00:00Z'), w = DS[d.getUTCDay()], dd = d.getUTCDate(), m = d.getUTCMonth(), y = d.getUTCFullYear();
@@ -190,8 +192,14 @@ function showErrors(form, errs) {
 }
 function formVals(form) {
   const o = {};
-  [...form.elements].forEach(el => { if (!el.name) return; if (el.type === 'checkbox') o[el.name] = el.checked; else if (el.type === 'radio') { if (el.checked) o[el.name] = el.value; } else if (el.type === 'file') o[el.name] = el.files && el.files[0] ? el.files[0].name : ''; else o[el.name] = el.value.trim(); });
+  [...form.elements].forEach(el => { if (!el.name) return; if (el.type === 'checkbox') o[el.name] = el.checked; else if (el.type === 'radio') { if (el.checked) o[el.name] = el.value; } else if (el.type === 'file') o[el.name] = el.files && el.files[0] ? el.files[0].name : ''; else if (el.type === 'select-multiple') o[el.name] = [...el.selectedOptions].map(x => x.value).join(', '); else o[el.name] = el.value.trim(); });
   return o;
+}
+/** A <select multiple> field: options is an array of strings, csv is the
+    stored comma-separated value ("Mathematics, Physics") to pre-select. */
+function multiSelectField(o) {
+  const id = 'f_' + o.name, selected = new Set((o.value || '').split(',').map(s => s.trim()).filter(Boolean));
+  return h`<div class="field ${o.full ? 'full' : ''}"><label for="${id}">${o.label}</label><select class="sel" id="${id}" name="${o.name}" multiple size="${Math.min(o.options.length, o.size || 6)}" aria-describedby="${o.hint ? 'hint_' + o.name : ''}">${o.options.map(v => h`<option value="${v}" ${selected.has(v) ? raw('selected') : ''}>${v}</option>`)}</select>${o.hint ? h`<div class="hint" id="hint_${o.name}">${o.hint}</div>` : ''}<div class="err" id="err_${o.name}" aria-live="polite" hidden></div></div>`;
 }
 const isEmail = s => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s);
 const isUKPhone = s => /^(?:\+44|0044|0)\s?\d[\d\s]{8,12}$/.test(s.replace(/[()-]/g, ''));

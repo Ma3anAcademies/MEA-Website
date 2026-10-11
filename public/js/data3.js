@@ -25,10 +25,13 @@ const seatsLeft = cl => Math.max(0, cl.capacity - filledCount(cl));
 /* Fees are priced per lesson. A family pays for a term or a month at a time:
    we work out exactly how many lessons fall in that period from the class's
    real weekly schedule (not a flat assumption), then charge lessons × the
-   per-lesson fee. */
+   per-lesson fee. "Month" means the rest of the current calendar month (from
+   today's actual date through its last day) — not a fixed 4-week window —
+   so a family joining late in the month is correctly charged for fewer
+   lessons than one joining at the start of it. */
 const classFee = cl => cl.feeOverride != null && cl.feeOverride !== '' ? +cl.feeOverride : clsCourse(cl).fee;
 const lessonsInTerm = cl => { const from = todayISO() > S.term.start ? todayISO() : S.term.start; return classSessions(cl, from, S.term.end).length; };
-const lessonsInMonth = (cl, fromISO) => classSessions(cl, fromISO || todayISO(), isoAdd(fromISO || todayISO(), 27)).length;
+const lessonsInMonth = (cl, fromISO) => { const from = fromISO || todayISO(); return classSessions(cl, from, endOfMonthISO(from)).length; };
 function periodLessons(cl, period) { return period === 'term' ? lessonsInTerm(cl) : lessonsInMonth(cl); }
 function periodTotal(cl, period) {
   const feePerLesson = classFee(cl), lessons = periodLessons(cl, period);

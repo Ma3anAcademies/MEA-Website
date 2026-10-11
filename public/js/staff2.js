@@ -117,10 +117,16 @@ Forms.courseForm = async (f, v) => {
 };
 
 /* ---- teachers ---- */
+/* Teacher subjects, levels and exam boards are picked from fixed lists
+   (held multi-select, so admins choose rather than type free text), while
+   qualifications stays a plain text field as before. */
+const ALL_SUBJECT_NAMES = () => SUBJECTS.map(s => s.name);
+const ALL_LEVEL_NAMES = () => [...new Set(Object.values(SYS).flatMap(s => s.levels.map(l => l.name)))];
+const ALL_BOARD_NAMES = () => [...new Set(Object.values(SYS).flatMap(s => s.boards))];
 function teacherForm(t) {
   return h`<form data-form="teacherForm" data-id="${t ? t.id : ''}" novalidate><div class="form-grid">
     ${t ? '' : h`${fld({ name: 'name', label: 'Full name', req: 1, full: 1 })}${fld({ name: 'email', label: 'Email address', type: 'email', req: 1 })}${fld({ name: 'password', label: 'Password', type: 'password', req: 1, full: 1, hint: 'At least 8 characters, including a number. Share this with the teacher yourself — there is no self-service sign-up for staff.' })}`}
-    ${fld({ name: 'subjects', label: 'Subjects', value: t ? t.subjects : '', ph: 'e.g. Mathematics, Physics' })}${fld({ name: 'levels', label: 'Levels taught', value: t ? t.levels : '', ph: 'e.g. KS3 – A-Level' })}${fld({ name: 'boards', label: 'Exam boards', value: t ? t.boards : '', ph: 'e.g. AQA, Edexcel' })}
+    ${multiSelectField({ name: 'subjects', label: 'Subjects', value: t ? t.subjects : '', options: ALL_SUBJECT_NAMES(), hint: 'Ctrl/Cmd-click (or tap each) to select more than one.' })}${multiSelectField({ name: 'levels', label: 'Levels taught', value: t ? t.levels : '', options: ALL_LEVEL_NAMES() })}${multiSelectField({ name: 'boards', label: 'Exam boards', value: t ? t.boards : '', options: ALL_BOARD_NAMES(), size: 4 })}
     ${fld({ name: 'qual', label: 'Qualifications', value: t ? t.qual : '', ph: 'e.g. BSc Mathematics, PGCE' })}${fld({ name: 'bio', label: 'Short bio', type: 'textarea', rows: 2, value: t ? t.bio : '', full: 1 })}</div>
     <div class="row" style="margin-top:16px;justify-content:flex-end"><button type="button" class="btn btn-outline" data-act="closeModal">Cancel</button><button class="btn btn-primary" type="submit">${t ? 'Save teacher' : 'Create teacher account'}</button></div></form>`;
 }
