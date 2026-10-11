@@ -60,7 +60,7 @@ function classForm(cl) {
     ${cl ? '' : fld({ name: 'course', label: 'Course', type: 'select', req: 1, value: c.courseId, options: S.courses.map(x => [x.id, x.title]), full: 1 })}
     ${fld({ name: 'teacher', label: 'Teacher', type: 'select', req: 1, value: c.teacherId, options: S.users.filter(x => x.role === 'teacher').map(x => [x.id, x.name]) })}${fld({ name: 'capacity', label: 'Capacity', type: 'number', req: 1, value: c.capacity, attrs: 'min="1" max="30"' })}
     ${cl ? '' : h`${fld({ name: 'day', label: 'Day', type: 'select', req: 1, value: 2, options: [1, 2, 3, 4, 5, 6, 0].map(d => [d, DAYS[d]]) })}${fld({ name: 'start', label: 'Start time', type: 'time', req: 1, value: '17:00' })}${fld({ name: 'end', label: 'End time', type: 'time', req: 1, value: '18:00' })}`}
-    ${fld({ name: 'fee', label: 'Fee override (£/month)', type: 'number', value: c.feeOverride ?? '', hint: 'Leave blank to use the course fee.', attrs: 'min="0" step="1"' })}${fld({ name: 'meeting', label: 'Class meeting link', type: 'url', value: c.meetingUrl, ph: 'https://…', hint: 'Zoom or Google Meet. Shown to enrolled families only.' })}
+    ${fld({ name: 'fee', label: 'Fee override (£/lesson)', type: 'number', value: c.feeOverride ?? '', hint: 'Leave blank to use the course fee.', attrs: 'min="0" step="1"' })}${fld({ name: 'meeting', label: 'Class meeting link', type: 'url', value: c.meetingUrl, ph: 'https://…', hint: 'Zoom or Google Meet. Shown to enrolled families only.' })}
     ${fld({ name: 'status', label: 'Status', type: 'select', value: c.status, options: ['Running', 'Paused', 'Ended'] })}${fld({ name: 'open', label: 'Enrolment', type: 'select', value: c.enrolOpen ? 'open' : 'closed', options: [['open', 'Open'], ['closed', 'Closed']] })}</div>
     <div class="row" style="margin-top:16px;justify-content:flex-end"><button type="button" class="btn btn-outline" data-act="closeModal">Cancel</button><button class="btn btn-primary" type="submit">${cl ? 'Save class' : 'Create class'}</button></div></form>`;
 }
@@ -92,11 +92,11 @@ function courseForm(c) {
   const x = c || { title: '', sys: 'eng', level: 'gcse', subject: 'maths', board: '', tier: '', fee: 150, desc: '', active: true };
   return h`<form data-form="courseForm" data-id="${c ? c.id : ''}" novalidate><div class="form-grid">${fld({ name: 'title', label: 'Course title', req: 1, value: x.title, full: 1 })}
     ${c ? '' : h`${fld({ name: 'sys', label: 'Education system', type: 'select', value: x.sys, options: Object.values(SYS).map(s => [s.id, s.short]) })}${fld({ name: 'level', label: 'Level', type: 'select', value: x.level, options: Object.values(SYS).flatMap(s => s.levels.map(l => [l.id, `${l.name} (${s.id === 'sco' ? 'Scotland' : 'England/Wales/NI'})`])) })}${fld({ name: 'subject', label: 'Subject', type: 'select', value: x.subject, options: SUBJECTS.map(s => [s.id, s.name]) })}${fld({ name: 'board', label: 'Exam board', value: x.board, hint: 'Leave blank if not applicable.' })}`}
-    ${fld({ name: 'fee', label: 'Default fee (£/month)', type: 'number', req: 1, value: x.fee, attrs: 'min="0"' })}${fld({ name: 'active', label: 'Visibility', type: 'select', value: x.active ? '1' : '0', options: [['1', 'Active (public)'], ['0', 'Hidden']] })}${fld({ name: 'desc', label: 'Public description', type: 'textarea', rows: 3, value: x.desc, full: 1 })}</div>
+    ${fld({ name: 'fee', label: 'Default fee (£/lesson)', type: 'number', req: 1, value: x.fee, attrs: 'min="0"' })}${fld({ name: 'active', label: 'Visibility', type: 'select', value: x.active ? '1' : '0', options: [['1', 'Active (public)'], ['0', 'Hidden']] })}${fld({ name: 'desc', label: 'Public description', type: 'textarea', rows: 3, value: x.desc, full: 1 })}</div>
     <div class="row" style="margin-top:16px;justify-content:flex-end"><button type="button" class="btn btn-outline" data-act="closeModal">Cancel</button><button class="btn btn-primary" type="submit">Save course</button></div></form>`;
 }
 R('/admin/courses', (p, q, u) => adminPage('Courses', 'book-open', 'The course catalogue: what MEA offers', h`<div class="toolbar"><div class="grow"></div><button class="btn btn-pink" data-act="coNew">${ic('plus')}New course</button></div>
-  ${tableHTML(['Course', 'System', 'Level', 'Fee', 'Visibility', ''], S.courses.map(c => h`<tr>${td('Course', h`<strong>${c.title}</strong>`)}${td('System', SYS[c.sys].short)}${td('Level', levelName(c.level))}${td('Fee', money(c.fee) + ' / month')}${td('Visibility', chip(c.active ? 'Active' : 'Hidden', c.active ? 'chip-green' : 'chip-grey'))}${td('', h`<button class="btn btn-outline btn-sm" data-act="coEdit" data-id="${c.id}">Edit</button>`, 'act')}</tr>`))}
+  ${tableHTML(['Course', 'System', 'Level', 'Fee', 'Visibility', ''], S.courses.map(c => h`<tr>${td('Course', h`<strong>${c.title}</strong>`)}${td('System', SYS[c.sys].short)}${td('Level', levelName(c.level))}${td('Fee', money(c.fee) + ' / lesson')}${td('Visibility', chip(c.active ? 'Active' : 'Hidden', c.active ? 'chip-green' : 'chip-grey'))}${td('', h`<button class="btn btn-outline btn-sm" data-act="coEdit" data-id="${c.id}">Edit</button>`, 'act')}</tr>`))}
   <section class="panel" style="margin-top:22px"><h2><span class="l">${ic('settings')}Levels and subjects offered</span></h2><p class="muted">Switch off anything MEA is not currently teaching. It disappears from the public site and Course Finder.</p><div class="grid g2"><div>${Object.values(SYS).map(s => h`<h3 style="font-size:1rem">${s.short}</h3>${s.levels.map(l => h`<label class="check" style="padding:6px 0"><input type="checkbox" data-on="toggleOff" data-kind="levels" data-id="${l.id}" ${isOff('levels', l.id) ? '' : raw('checked')}><span>${l.name}</span></label>`)}`)}</div><div><h3 style="font-size:1rem">Subjects</h3>${SUBJECTS.map(s => h`<label class="check" style="padding:6px 0"><input type="checkbox" data-on="toggleOff" data-kind="subjects" data-id="${s.id}" ${isOff('subjects', s.id) ? '' : raw('checked')}><span>${s.name}</span></label>`)}</div></div></section>`), AR);
 Changes.toggleOff = el => { const a = S.off[el.dataset.kind], id = el.dataset.id, i = a.indexOf(id); if (el.checked && i >= 0) a.splice(i, 1); if (!el.checked && i < 0) a.push(id); save(); toast('Saved. The public site has been updated.'); };
 Actions.coNew = () => openModal({ title: 'New course', body: courseForm(null) });
@@ -114,6 +114,79 @@ Forms.courseForm = async (f, v) => {
     S.courses.push(row);
   }
   save(); closeModal(); toast('Course saved.'); render({ keepScroll: true });
+};
+
+/* ---- teachers ---- */
+function teacherForm(t) {
+  return h`<form data-form="teacherForm" data-id="${t ? t.id : ''}" novalidate><div class="form-grid">
+    ${t ? '' : h`${fld({ name: 'name', label: 'Full name', req: 1, full: 1 })}${fld({ name: 'email', label: 'Email address', type: 'email', req: 1 })}${fld({ name: 'password', label: 'Password', type: 'password', req: 1, full: 1, hint: 'At least 8 characters, including a number. Share this with the teacher yourself — there is no self-service sign-up for staff.' })}`}
+    ${fld({ name: 'subjects', label: 'Subjects', value: t ? t.subjects : '', ph: 'e.g. Mathematics, Physics' })}${fld({ name: 'levels', label: 'Levels taught', value: t ? t.levels : '', ph: 'e.g. KS3 – A-Level' })}${fld({ name: 'boards', label: 'Exam boards', value: t ? t.boards : '', ph: 'e.g. AQA, Edexcel' })}
+    ${fld({ name: 'qual', label: 'Qualifications', value: t ? t.qual : '', ph: 'e.g. BSc Mathematics, PGCE' })}${fld({ name: 'bio', label: 'Short bio', type: 'textarea', rows: 2, value: t ? t.bio : '', full: 1 })}</div>
+    <div class="row" style="margin-top:16px;justify-content:flex-end"><button type="button" class="btn btn-outline" data-act="closeModal">Cancel</button><button class="btn btn-primary" type="submit">${t ? 'Save teacher' : 'Create teacher account'}</button></div></form>`;
+}
+R('/admin/teachers', (p, q, u) => {
+  const term = (UI.atq || '').toLowerCase();
+  const teachers = S.users.filter(x => x.role === 'teacher' && (!term || (x.name + ' ' + (x.subjects || '')).toLowerCase().includes(term)));
+  return adminPage('Teachers', 'graduation-cap', 'Every teacher, their classes and their students, in one place', h`
+  <div class="toolbar">${searchBox('atq', UI.atq, 'atSearch', 'Search teacher or subject')}<div class="grow"></div>${LIVE_BACKEND ? h`<button class="btn btn-pink" data-act="atNew">${ic('plus')}Add teacher</button>` : h`<span class="small muted">Connect the live backend to create real teacher sign-in accounts.</span>`}</div>
+  ${tableHTML(['Teacher', 'Subjects', 'Levels', 'Classes', 'Students', 'Published', ''], teachers.map(t => {
+    const classes = S.classes.filter(c => c.teacherId === t.id);
+    const students = new Set(classes.flatMap(c => S.enrolments.filter(e => e.classId === c.id && ['Active', 'Pending Confirmation'].includes(e.status)).map(e => e.childId))).size;
+    return h`<tr>${td('Teacher', h`<strong>${t.name}</strong><br><span class="small muted">${t.live ? t.email : 'Sample profile (About page)'}</span>`)}${td('Subjects', t.subjects || '–')}${td('Levels', t.levels || '–')}${td('Classes', classes.length)}${td('Students', students)}${td('Published', h`<span class="sw"><input type="checkbox" data-on="toggleTeacher" data-id="${t.id}" ${t.publish ? raw('checked') : ''} aria-label="Published: ${t.name}"><span></span></span>`)}${td('', h`<div class="row" style="gap:6px;justify-content:flex-end"><button class="btn btn-outline btn-sm" data-act="atView" data-id="${t.id}">Manage</button>${t.live ? h`<button class="btn btn-danger btn-sm" data-act="atDel" data-id="${t.id}">Remove</button>` : ''}</div>`, 'act')}</tr>`;
+  }), { empty: 'No teachers match.' })}`);
+}, AR);
+Changes.atSearch = el => { UI.atq = el.value; render({ keepScroll: true }); };
+Actions.atNew = () => openModal({ title: 'Add teacher', body: teacherForm(null) });
+Actions.atEdit = t => openModal({ title: 'Edit teacher', body: teacherForm(userById(t.dataset.id)) });
+Forms.teacherForm = async (f, v) => {
+  if (f.dataset.id) {
+    const patch = { subjects: v.subjects, levels: v.levels, boards: v.boards, qual: v.qual, bio: v.bio };
+    if (LIVE_BACKEND) { const r = await api('teachers', { method: 'PATCH', body: { id: f.dataset.id, ...patch } }); if (!r.ok) { toast((r.data && r.data.error) || 'Could not save — please try again.'); return; } }
+    Object.assign(userById(f.dataset.id), patch); save(); closeModal(); toast('Teacher saved.'); render({ keepScroll: true });
+    return;
+  }
+  const e = {}; if (!v.name) e.name = 'Enter the teacher’s name.'; if (!isEmail(v.email)) e.email = 'Enter a valid email address.';
+  if (v.password.length < 8 || !/\d/.test(v.password)) e.password = 'Use at least 8 characters, including a number.';
+  if (!showErrors(f, e)) return;
+  const r = await api('teachers', { method: 'POST', body: { name: v.name, email: v.email, password: v.password, subjects: v.subjects, levels: v.levels, boards: v.boards, qual: v.qual, bio: v.bio } });
+  if (!r.ok) { showErrors(f, { [(r.data && r.data.field) || 'email']: (r.data && r.data.error) || 'Could not create the account — please try again.' }); return; }
+  const t = r.data.teacher;
+  S.users.push({ id: t.id, role: 'teacher', name: t.name, email: t.email, subjects: t.subjects, levels: t.levels, boards: t.boards, qual: t.qual, bio: t.bio, publish: false, notify: { email: true, messages: true, reminders: true, announcements: true }, created: todayISO(), live: true });
+  save(); closeModal(); toast(`Teacher account created for ${t.name}.`); render({ keepScroll: true });
+};
+Actions.atDel = t => {
+  const te = userById(t.dataset.id), classes = S.classes.filter(c => c.teacherId === te.id);
+  openModal({ title: 'Remove teacher', body: h`<p>Remove <strong>${te.name}</strong>? ${classes.length ? `${plural(classes.length, 'class', 'classes')} assigned to them will be left without a teacher — reassign ${classes.length > 1 ? 'them' : 'it'} in Admin → Classes.` : ''} This can’t be undone.</p>`, foot: h`<button class="btn btn-outline" data-act="closeModal">Cancel</button><button class="btn btn-danger" data-act="atDelGo" data-id="${te.id}">Remove teacher</button>` });
+};
+Actions.atDelGo = async t => {
+  const id = t.dataset.id;
+  if (LIVE_BACKEND) { const r = await api('teachers', { method: 'DELETE', body: { id } }); if (!r.ok) { toast((r.data && r.data.error) || 'Could not remove — please try again.'); return; } }
+  S.classes.filter(c => c.teacherId === id).forEach(c => c.teacherId = '');
+  S.users = S.users.filter(x => x.id !== id);
+  save(); closeModal(); toast('Teacher removed.'); render({ keepScroll: true });
+};
+Actions.atView = t => {
+  const te = userById(t.dataset.id), classes = S.classes.filter(c => c.teacherId === te.id);
+  const rosterRow = cl => { const roster = S.enrolments.filter(e => e.classId === cl.id && ['Active', 'Pending Confirmation'].includes(e.status)).map(e => childById(e.childId)).filter(Boolean);
+    return h`<div class="li" style="align-items:flex-start"><div class="grow"><div class="t">${clsCourse(cl).title}</div><div class="s">${schedText(cl).short} · ${filledCount(cl)}/${cl.capacity} seats</div>${roster.length ? h`<div class="chips" style="margin-top:6px">${roster.map(k => chip(k.first + ' ' + k.last, 'chip-grey'))}</div>` : h`<div class="small muted" style="margin-top:4px">No students yet.</div>`}</div><button class="btn btn-outline btn-sm" data-act="atAddStudent" data-class="${cl.id}">${ic('user-plus')}Add student</button></div>`; };
+  openModal({ title: te.name, body: h`<div class="stack"><p class="small muted" style="margin:0">${te.subjects || ''}${te.levels ? ' · ' + te.levels : ''}</p>
+  ${classes.length ? h`<div class="list">${classes.map(rosterRow)}</div>` : emptyState({ icon: 'calendar', title: 'No classes assigned', text: 'Assign this teacher to a class in Admin → Classes.' })}</div>`, foot: h`<button class="btn btn-outline" data-act="atEdit" data-id="${te.id}">Edit profile</button><button class="btn btn-primary" data-act="closeModal">Close</button>` });
+};
+Actions.atAddStudent = t => {
+  const classId = t.dataset.class, cl = classById(classId);
+  const already = new Set(S.enrolments.filter(e => e.classId === classId && ['Active', 'Pending Confirmation', 'Waitlisted'].includes(e.status)).map(e => e.childId));
+  const kids = S.children.filter(k => !already.has(k.id));
+  openModal({ title: 'Add student to ' + clsCourse(cl).title, body: kids.length ? h`<div class="field"><label for="asKid">Student</label><select class="sel" id="asKid">${kids.map(k => h`<option value="${k.id}">${k.first} ${k.last} (${k.stage}) · ${pname(k.parentId)}</option>`)}</select></div><p class="small muted" style="margin-top:8px">${filledCount(cl)}/${cl.capacity} seats filled. The student is enrolled immediately as Active.</p>` : h`<p>Every known student is already in this class.</p>`, foot: h`<button class="btn btn-outline" data-act="closeModal">Cancel</button>${kids.length ? h`<button class="btn btn-primary" data-act="atAddStudentGo" data-class="${classId}">Add student</button>` : ''}` });
+};
+Actions.atAddStudentGo = async t => {
+  const classId = t.dataset.class, childId = $('#asKid').value, cl = classById(classId), co = clsCourse(cl), k = childById(childId);
+  if (!childId) { toast('Choose a student first.'); return; }
+  if (seatsLeft(cl) <= 0) { toast('This class is full. Increase its capacity first.'); return; }
+  let id = uid('en');
+  if (LIVE_BACKEND) { const r = await api('enrolments', { method: 'POST', body: { childId, classId } }); if (!r.ok) { toast((r.data && r.data.error) || 'Could not add — please try again.'); return; } id = r.data.enrolment.id; }
+  S.enrolments.push({ id, childId, classId, status: 'Active', created: todayISO() });
+  if (!k.synthetic) addNotif(k.parentId, 'Enrolments', k.id, `Enrolment confirmed: ${k.first} is now enrolled in ${co.title}.`, '/my-mea/courses');
+  save(); closeModal(); toast(`${k.first} added to ${co.title}.`); render({ keepScroll: true });
 };
 
 /* ---- families ---- */
@@ -158,31 +231,13 @@ function faqForm(x) { return h`<form data-form="faqForm" data-id="${x ? x.id : '
 R('/admin/content', (p, q, u) => adminPage('Content', 'file-text', 'Edit FAQs, testimonials and teacher profiles without a developer', h`<div class="stack">
   <section class="panel"><h2><span class="l">${ic('help-circle')}FAQs</span><button class="btn btn-pink btn-sm" data-act="faqNew">${ic('plus')}Add FAQ</button></h2>${tableHTML(['Category', 'Question', ''], S.faqs.map(x => h`<tr>${td('Category', x.cat)}${td('Question', x.q)}${td('', h`<button class="btn btn-outline btn-sm" data-act="faqEdit" data-id="${x.id}">Edit</button> <button class="btn btn-danger btn-sm" data-act="faqDel" data-id="${x.id}">Delete</button>`, 'act')}</tr>`), { plain: true })}</section>
   <section class="panel"><h2><span class="l">${ic('star')}Testimonials and stories</span></h2><p class="muted">Publish only verified content with permission.</p>${[...S.testimonials.map((t, i) => ({ k: 'testimonials', i, l: `Testimonial – ${t.by}`, pub: t.pub })), ...S.stories.map((t, i) => ({ k: 'stories', i, l: `Story – ${t.title}`, pub: t.pub }))].map(x => h`<label class="toggle"><span>${x.l}</span><span class="sw"><input type="checkbox" data-on="togglePub" data-k="${x.k}" data-i="${x.i}" ${x.pub ? raw('checked') : ''} aria-label="Published: ${x.l}"><span></span></span></label>`)}</section>
-  ${LIVE_BACKEND ? h`<section class="panel"><h2><span class="l">${ic('user-plus')}Teacher accounts</span></h2><p class="muted">Real, working sign-in accounts. Give the email and password you set here to the teacher directly — there's no self-service sign-up for staff.</p>
-    <form data-form="newTeacher" novalidate><div class="form-grid">
-      ${fld({ name: 'name', label: 'Full name', req: 1, full: 1 })}${fld({ name: 'email', label: 'Email address', type: 'email', req: 1 })}${fld({ name: 'password', label: 'Password', type: 'password', req: 1, hint: 'At least 8 characters, including a number. Share this with the teacher yourself.' })}
-      ${fld({ name: 'subjects', label: 'Subjects', ph: 'e.g. Mathematics, Physics' })}${fld({ name: 'levels', label: 'Levels taught', ph: 'e.g. KS3 – A-Level' })}${fld({ name: 'boards', label: 'Exam boards', ph: 'e.g. AQA, Edexcel' })}
-      ${fld({ name: 'qual', label: 'Qualifications', ph: 'e.g. BSc Mathematics, PGCE' })}${fld({ name: 'bio', label: 'Short bio', type: 'textarea', rows: 2, full: 1 })}</div>
-      <button class="btn btn-primary" type="submit" style="margin-top:14px">${ic('plus')}Create teacher account</button></form>
-    ${S.users.filter(x => x.role === 'teacher' && x.live).length ? h`<div style="margin-top:18px">${tableHTML(['Name', 'Email', 'Subjects', 'Assigned classes'], S.users.filter(x => x.role === 'teacher' && x.live).map(t => h`<tr>${td('Name', t.name)}${td('Email', t.email)}${td('Subjects', t.subjects || '–')}${td('Assigned classes', S.classes.filter(c => c.teacherId === t.id).length)}</tr>`), { plain: true })}</div>` : ''}
-    <p class="form-note" style="margin-top:10px">${ic('info')} A new teacher can't manage a class until you assign them to it — edit the class in Admin → Classes and pick them from the Teacher list.</p></section>` : ''}
-  <section class="panel"><h2><span class="l">${ic('users')}Teacher profiles on the About page</span></h2><p class="muted">Sample profiles for design preview, shown on the public About page. Real teacher accounts above are separate from this list for now.</p>${S.users.filter(x => x.role === 'teacher' && !x.live).map(t => h`<label class="toggle"><span>${t.name} <span class="small muted">· ${t.subjects}</span></span><span class="sw"><input type="checkbox" data-on="toggleTeacher" data-id="${t.id}" ${t.publish ? raw('checked') : ''} aria-label="Published: ${t.name}"><span></span></span></label>`)}</section></div>`), AR);
+  <section class="panel"><h2><span class="l">${ic('graduation-cap')}Teacher accounts and profiles</span></h2><p class="muted">Creating, removing and managing teachers — including which profiles are published on the About page — has moved to its own tab.</p>${btn('Go to Teachers', '/admin/teachers', 'btn-outline')}</section></div>`), AR);
 Actions.faqNew = () => openModal({ title: 'Add FAQ', body: faqForm(null) });
 Actions.faqEdit = t => openModal({ title: 'Edit FAQ', body: faqForm(S.faqs.find(x => x.id === t.dataset.id)) });
 Actions.faqDel = t => { S.faqs = S.faqs.filter(x => x.id !== t.dataset.id); save(); toast('FAQ deleted.'); render({ keepScroll: true }); };
 Forms.faqForm = (f, v) => { const e = {}; if (!v.q) e.q = 'Enter the question.'; if (!v.a) e.a = 'Enter the answer.'; if (!showErrors(f, e)) return; if (f.dataset.id) Object.assign(S.faqs.find(x => x.id === f.dataset.id), { cat: v.cat, q: v.q, a: v.a }); else S.faqs.push({ id: uid('f'), cat: v.cat, q: v.q, a: v.a }); save(); closeModal(); toast('FAQ saved.'); render({ keepScroll: true }); };
 Changes.togglePub = el => { S[el.dataset.k][+el.dataset.i].pub = el.checked; save(); toast('Saved.'); };
 Changes.toggleTeacher = el => { userById(el.dataset.id).publish = el.checked; save(); toast('Saved.'); };
-Forms.newTeacher = async (f, v) => {
-  const e = {}; if (!v.name) e.name = 'Enter the teacher\u2019s name.'; if (!isEmail(v.email)) e.email = 'Enter a valid email address.';
-  if (v.password.length < 8 || !/\d/.test(v.password)) e.password = 'Use at least 8 characters, including a number.';
-  if (!showErrors(f, e)) return;
-  const r = await api('teachers', { method: 'POST', body: { name: v.name, email: v.email, password: v.password, subjects: v.subjects, levels: v.levels, boards: v.boards, qual: v.qual, bio: v.bio } });
-  if (!r.ok) { showErrors(f, { [(r.data && r.data.field) || 'email']: (r.data && r.data.error) || 'Could not create the account — please try again.' }); return; }
-  const t = r.data.teacher;
-  S.users.push({ id: t.id, role: 'teacher', name: t.name, email: t.email, subjects: t.subjects, levels: t.levels, boards: t.boards, qual: t.qual, bio: t.bio, publish: false, notify: { email: true, messages: true, reminders: true, announcements: true }, created: todayISO(), live: true });
-  save(); f.reset(); toast(`Teacher account created for ${t.name}. Now assign them to a class in Admin \u2192 Classes.`); render({ keepScroll: true });
-};
 
 /* ---- support queue ---- */
 function adminSupport(p, q, u) {
@@ -321,7 +376,7 @@ R('/admin/invoices', (p, q, u) => {
     <div class="sum"><span class="ico c-yellow">${ic('credit-card')}</span><div><div class="lab">Total outstanding</div><div class="val">${money(totalDue)}</div><div class="sm">${plural(list.filter(i => i.status === 'Due').length, 'invoice')} due</div></div></div>
     <div class="sum"><span class="ico c-green">${ic('check-circle')}</span><div><div class="lab">Paid this list</div><div class="val">${list.filter(i => i.status === 'Paid').length}</div><div class="sm">of ${list.length} shown</div></div></div>
   </div>
-  <section class="panel" style="margin-bottom:20px"><h2><span class="l">${ic('zap')}Generate this month's invoices</span></h2><p class="muted">Creates one real invoice per family with an active enrolment, using their children's actual class fees — the same monthly billing run a small tuition business would do by hand. Safe to click more than once: it always creates a fresh set for the period you enter, it won't touch invoices already generated.</p>
+  <section class="panel" style="margin-bottom:20px"><h2><span class="l">${ic('zap')}Generate this month's invoices</span></h2><p class="muted">Creates one real invoice per family with an active enrolment. Fees are per lesson — each line is costed from that class's real weekly schedule, using whichever billing period (monthly or termly) the family chose when they enrolled. Safe to click more than once: it always creates a fresh set for the period you enter, it won't touch invoices already generated.</p>
     <form data-form="genInvoices" class="form-grid" novalidate>${fld({ name: 'period', label: 'Billing period', value: S.term.name })}${fld({ name: 'dueDate', label: 'Due date', type: 'date', req: 1, value: isoAdd(todayISO(), 10) })}${fld({ name: 'siblingDiscountPct', label: 'Sibling discount % (2+ children)', type: 'number', value: SITE.siblingDiscount || 0 })}<div><button class="btn btn-primary" type="submit" style="margin-top:22px">Generate invoices</button></div></form></section>
   ${!PAYMENTS_CONFIGURED ? h`<div class="alert alert-warn" style="margin-bottom:16px">${ic('alert-triangle')}<span>Online card payment isn't connected yet — families can still see these invoices, but "Pay Now" won't appear until Stripe is set up in Admin → Setup &amp; Integrations.</span></div>` : ''}
   <div class="toolbar">${searchBox('invq', UI.invq, 'invSearch', 'Search invoice, parent or period')}<div class="grow"></div>${LIVE_BACKEND ? h`<button class="btn btn-outline btn-sm" data-act="invRefresh">${ic('refresh')}Refresh</button>` : ''}</div>

@@ -49,3 +49,14 @@ export async function updateTeacher(id, patch) {
   await store().setJSON(`t:${id}`, updated);
   return { teacher: updated };
 }
+
+/** Admin-only: permanently removes a teacher's sign-in account. Any classes
+    assigned to them are NOT deleted — they're left with no teacher assigned
+    (teacherId cleared) so admin can reassign rather than losing the class. */
+export async function deleteTeacher(id) {
+  const existing = await getTeacher(id);
+  if (!existing) return { error: "That teacher wasn't found." };
+  await store().delete(`t:${id}`);
+  await store().delete(`e:${hex(normEmail(existing.email))}`);
+  return { ok: true };
+}

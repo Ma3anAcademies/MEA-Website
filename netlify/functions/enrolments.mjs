@@ -1,5 +1,5 @@
 import { readToken } from "./_lib/auth.mjs";
-import { listEnrolments, requestEnrolment, setEnrolmentStatus, moveEnrolment, getEnrolment } from "./_lib/enrolments.mjs";
+import { listEnrolments, requestEnrolment, setEnrolmentStatus, moveEnrolment, getEnrolment, adminEnrol, setBillingPeriod } from "./_lib/enrolments.mjs";
 import { listChildren } from "./_lib/children.mjs";
 import { listClasses } from "./_lib/classes.mjs";
 import { json, err } from "./_lib/http.mjs";
@@ -25,18 +25,24 @@ export default async (req) => {
   }
 
   if (req.method === "POST") {
-    if (payload.role !== "parent") return err(403, "Only a parent account can request enrolment.");
     let body; try { body = await req.json(); } catch { return err(400, "Invalid request."); }
+    if (payload.role === "admin") {
+      if (!body.childId || !body.classId) return err(400, "Missing child or class.");
+      const { enrolment, error } = await adminEnrol(body.childId, body.classId, body.billingPeriod);
+      if (error) return err(400, error);
+      return json({ enrolment });
+    }
+    if (payload.role !== "parent") return err(403, "Only a parent account can request enrolment.");
     const mine = new Set((await listChildren(payload.id)).map((c) => c.id));
     if (!body.childId || !mine.has(body.childId)) return err(403, "That child does not belong to your account.");
-    const { enrolment, error } = await requestEnrolment(body.childId, body.classId);
+    const { enrolment, error } = await requestEnrolment(body.childId, body.classId, body.billingPeriod);
     if (error) return err(400, error);
     return json({ enrolment });
   }
 
   if (req.method === "PATCH") {
     let body; try { body = await req.json(); } catch { return err(400, "Invalid request."); }
-    const { id, status, classId } = body || {};
+    const { id, status, classId, billingPeriod } = body || {};
     if (!id) return err(400, "Missing enrolment id.");
     const existing = await getEnrolment(id);
     if (!existing) return err(404, "Enrolment not found.");
@@ -48,7 +54,7 @@ export default async (req) => {
     } else if (payload.role !== "admin") {
       return err(403, "Only admin can manage enrolments.");
     }
-    const result = classId ? await moveEnrolment(id, classId) : await setEnrolmentStatus(id, status);
+    const result = classId ? await moveEnrolment(id, classId) : billingPeriod ? await setBillingPeriod(id, billingPeriod) : await setEnrolmentStatus(id, status);
     if (result.error) return err(400, result.error);
     return json({ enrolment: result.enrolment });
   }

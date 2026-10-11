@@ -1,5 +1,6 @@
 import { readToken } from "./_lib/auth.mjs";
-import { listTeachers, createTeacher, updateTeacher } from "./_lib/teachers.mjs";
+import { listTeachers, createTeacher, updateTeacher, deleteTeacher } from "./_lib/teachers.mjs";
+import { listClasses, updateClass } from "./_lib/classes.mjs";
 import { json, err } from "./_lib/http.mjs";
 
 export default async (req) => {
@@ -30,6 +31,18 @@ export default async (req) => {
     if (error) return err(404, error);
     const { salt, hash, ...safe } = teacher;
     return json({ teacher: safe });
+  }
+  if (req.method === "DELETE") {
+    let body; try { body = await req.json(); } catch { body = {}; }
+    const id = body.id || new URL(req.url).searchParams.get("id");
+    if (!id) return err(400, "Missing teacher id.");
+    // Clear this teacher from any classes assigned to them, so the class survives
+    // (just unassigned) rather than pointing at a deleted account.
+    const theirs = (await listClasses()).filter((c) => c.teacherId === id);
+    for (const c of theirs) await updateClass(c.id, { teacherId: "" });
+    const { error } = await deleteTeacher(id);
+    if (error) return err(404, error);
+    return json({ ok: true, unassigned: theirs.length });
   }
   return err(405, "Method not allowed.");
 };

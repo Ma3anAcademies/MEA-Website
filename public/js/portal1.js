@@ -138,7 +138,7 @@ R('/my-mea/courses', (p, q, u) => {
   const groups = ks.map(k => ({ k, en: S.enrolments.filter(e => e.childId === k.id && !['Withdrawn', 'Cancelled'].includes(e.status) && visible(e)) })).filter(g => g.en.length);
   return {
     title: 'My Courses', shell: 'parent', ptitle: 'My Courses', psub: 'All your children’s courses in one place', body: h`
-    <div class="toolbar">${kidPicker(u, true)}<div class="field"><label for="cst">Filter by status</label><select class="sel" id="cst" data-on="cStatus"><option value="">All courses</option>${['Live', 'Active', 'Pending Confirmation', 'Waitlisted', 'Completed'].map(s => h`<option value="${s}" ${status === s ? raw('selected') : ''}>${s === 'Live' ? 'Current (not completed)' : s}</option>`)}</select></div><div class="grow"></div>${btn('Find a Course', '/my-mea/courses/find', 'btn-pink', 'search')}</div>
+    <div class="toolbar">${kidPicker(u, true)}<div class="field"><label for="cst">Filter by status</label><select class="sel" id="cst" data-on="cStatus"><option value="">All courses</option>${['Live', 'Active', 'Pending Confirmation', 'Waitlisted', 'Completed'].map(s => h`<option value="${s}" ${status === s ? raw('selected') : ''}>${s === 'Live' ? 'Current (not completed)' : s}</option>`)}</select></div><div class="grow"></div><a class="btn btn-outline btn-sm" href="#/my-mea/children/add" title="Add another child">${ic('user-plus')}Add Child</a>${btn('Find a Course', '/my-mea/courses/find', 'btn-pink', 'search')}</div>
     ${groups.length ? groups.map(g => h`<section class="panel" style="margin-bottom:18px"><h2><span class="l">${avatar(g.k.first, kidIdx(g.k), 'sm')}${g.k.first} · ${g.k.stage}</span></h2><div class="list">${g.en.map(row)}</div></section>`) : emptyState({ icon: 'book-open', title: 'No courses yet', text: 'Find a class that suits your child’s year and subject.', action: btn('Find a Course', '/my-mea/courses/find', 'btn-primary') })}`
   };
 }, PR);
@@ -151,7 +151,7 @@ R('/my-mea/courses/find', (p, q, u) => {
   const kid = childById(kidSel(u, false)), lv = levelOfStage(kid.sys, kid.stage), F = UI.fc || (UI.fc = {});
   const base = findClasses({ sys: kid.sys, level: F.all ? '' : lv });
   const subs = [...new Set(base.map(c => clsCourse(c).subject))].map(subj), boards = [...new Set(base.map(c => clsCourse(c).board).filter(Boolean))];
-  const list = findClasses({ sys: kid.sys, level: F.all ? '' : lv, subject: F.subject || '', board: F.board || '', day: F.day ?? '', avail: F.avail || '', q: F.q || '' });
+  const list = findClasses({ sys: kid.sys, level: F.all ? '' : lv, subject: F.subject || '', board: F.board || '', day: F.day ?? '', q: F.q || '' }).filter(cl => !F.avail || avail(cl).k === F.avail);
   return {
     title: 'Find a Course', shell: 'parent', ptitle: 'Find a Course', psub: `Classes for ${kid.first} (${kid.stage})`, body: h`
     <div class="toolbar">${kidPicker(u, false)}</div>
@@ -176,7 +176,8 @@ function enrolView(mode) {
     const co = clsCourse(cl), a = avail(cl), ks = myKids(u);
     if (mode === 'enrol' && a.k === 'full') return { redirect: '/my-mea/courses/waitlist/' + cl.id + (q.child ? qs({ child: q.child }) : '') };
     if (!ks.length) return { title: 'Enrol', shell: 'parent', ptitle: mode === 'waitlist' ? 'Join Waitlist' : 'Request Enrolment', psub: co.title, body: h`${emptyState({ icon: 'user-plus', title: 'Add your child first', text: 'We need your child’s year and stage to check this class is the right fit.', action: btn('Add Your First Child', '/my-mea/children/add?first=1', 'btn-pink') })}` };
-    const E = UI.enrol && UI.enrol.classId === cl.id ? UI.enrol : (UI.enrol = { classId: cl.id, child: '' });
+    const E = UI.enrol && UI.enrol.classId === cl.id ? UI.enrol : (UI.enrol = { classId: cl.id, child: '', period: 'month' });
+    if (!E.period) E.period = 'month';
     if (q.child && childById(q.child) && childById(q.child).parentId === u.id) E.child = q.child;
     if (!E.child) E.child = ks.length === 1 ? ks[0].id : (ks.find(k => !stageMismatch(k, co)) || ks[0]).id;
     const kid = childById(E.child), mm = stageMismatch(kid, co), dup = S.enrolments.find(e => e.childId === kid.id && e.classId === cl.id && ['Active', 'Pending Confirmation', 'Waitlisted'].includes(e.status));
@@ -186,25 +187,28 @@ function enrolView(mode) {
       title, shell: 'parent', ptitle: title, psub: `Review the details before you submit`, body: h`<div class="cols-2" style="grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)"><div class="stack">
       <div class="panel"><h2>1. Choose child</h2><div class="pick">${ks.map(k => h`<button type="button" data-act="enrolKid" data-id="${k.id}" aria-pressed="${E.child === k.id}">${k.first}<small>${k.stage}${stageMismatch(k, co) ? ' · different stage' : ' · matches this class'}</small></button>`)}</div>
         ${mm ? h`<div class="alert alert-warn" style="margin-top:14px">${ic('alert-triangle')}<span><strong>Check the stage.</strong> ${kid.first} is recorded as ${kid.stage} (${SYS[kid.sys].short}), but this class is for ${levelName(co.level)} in ${SYS[co.sys].short}. You can still continue if you are sure it is right.</span></div>` : ''}${dup ? h`<div class="alert alert-info" style="margin-top:14px">${ic('info')}<span>${kid.first} already has a ${dup.status.toLowerCase()} request for this class.</span></div>` : ''}</div>
-      <div class="panel"><h2>2. Confirm</h2><form data-form="enrol" data-mode="${mode}" novalidate>${chk('terms', h`I have read the <a href="#/terms" target="_blank">key terms</a> and understand fees are charged monthly.`, false, true)}<div class="row" style="margin-top:16px"><button class="btn btn-pink" type="submit" ${dup ? raw('disabled') : ''}>${mode === 'waitlist' ? 'Join Waitlist' : 'Request Enrolment'}</button><a class="btn btn-outline" href="#/courses/${co.slug}">Cancel</a></div></form>
+      <div class="panel"><h2>2. How do you want to pay?</h2><p class="muted" style="margin-top:-4px">Fees are charged per lesson. Choose how often you'd like to be billed — we'll work out the total from this class's real weekly schedule.</p>
+        <div class="pick">${[['month', 'Pay monthly', periodTotal(cl, 'month')], ['term', 'Pay termly', periodTotal(cl, 'term')]].map(([k, label, t]) => h`<button type="button" data-act="enrolPeriod" data-p="${k}" aria-pressed="${E.period === k}">${label}<small>${t.lessons} lesson${t.lessons === 1 ? '' : 's'} × ${money(t.feePerLesson)} = ${money(t.total)}</small></button>`)}</div></div>
+      <div class="panel"><h2>3. Confirm</h2><form data-form="enrol" data-mode="${mode}" novalidate>${chk('terms', h`I have read the <a href="#/terms" target="_blank">key terms</a> and understand fees are charged per lesson, billed ${E.period === 'term' ? 'termly' : 'monthly'}.`, false, true)}<div class="row" style="margin-top:16px"><button class="btn btn-pink" type="submit" ${dup ? raw('disabled') : ''}>${mode === 'waitlist' ? 'Join Waitlist' : 'Request Enrolment'}</button><a class="btn btn-outline" href="#/courses/${co.slug}">Cancel</a></div></form>
         <p class="form-note" style="margin-top:12px">${mode === 'waitlist' ? 'You will be notified if a place becomes available.' : 'Your request will show as Pending Confirmation until MEA confirms your place.'}</p></div></div>
-      <aside class="panel" aria-label="Summary"><h2>Summary</h2><dl class="kv"><dt>Child</dt><dd>${kid.first} (${kid.stage})</dd><dt>Course</dt><dd>${co.title}</dd><dt>Subject / level</dt><dd>${subj(co.subject).name} · ${levelName(co.level)}</dd><dt>Day / time</dt><dd>${sc.days}<br>${sc.time} (UK time)</dd><dt>Start / term</dt><dd>${startsLater(cl) ? fmtDate(cl.startDate, 'long') : cl.term}</dd><dt>Fee</dt><dd>${money(classFee(cl))} per month</dd><dt>Status</dt><dd>${chip(a.label, a.cls, a.icon)}</dd></dl></aside></div>`
+      <aside class="panel" aria-label="Summary"><h2>Summary</h2><dl class="kv"><dt>Child</dt><dd>${kid.first} (${kid.stage})</dd><dt>Course</dt><dd>${co.title}</dd><dt>Subject / level</dt><dd>${subj(co.subject).name} · ${levelName(co.level)}</dd><dt>Day / time</dt><dd>${sc.days}<br>${sc.time} (UK time)</dd><dt>Start / term</dt><dd>${startsLater(cl) ? fmtDate(cl.startDate, 'long') : cl.term}</dd><dt>Fee</dt><dd>${money(classFee(cl))} per lesson</dd><dt>${E.period === 'term' ? 'Termly total' : 'Monthly total'}</dt><dd><strong>${money(periodTotal(cl, E.period).total)}</strong></dd><dt>Status</dt><dd>${chip(a.label, a.cls, a.icon)}</dd></dl></aside></div>`
     };
   };
 }
 R('/my-mea/courses/enrol/:classId', enrolView('enrol'), PR);
 R('/my-mea/courses/waitlist/:classId', enrolView('waitlist'), PR);
 Actions.enrolKid = t => { UI.enrol.child = t.dataset.id; render({ keepScroll: true }); };
+Actions.enrolPeriod = t => { UI.enrol.period = t.dataset.p; render({ keepScroll: true }); };
 Forms.enrol = async (f, v) => {
-  const u = me(), E = UI.enrol, cl = classById(E.classId), co = clsCourse(cl), kid = childById(E.child), mode = f.dataset.mode;
+  const u = me(), E = UI.enrol, cl = classById(E.classId), co = clsCourse(cl), kid = childById(E.child), mode = f.dataset.mode, period = E.period || 'month';
   if (!showErrors(f, v.terms ? {} : { terms: 'Please confirm you have read the key terms.' })) return;
   let status = mode === 'waitlist' || avail(cl).k === 'full' ? 'Waitlisted' : 'Pending Confirmation', id = uid('en'), live = false;
   if (LIVE_BACKEND && u.live && kid.live) {
-    const r = await api('enrolments', { method: 'POST', body: { childId: kid.id, classId: cl.id } });
+    const r = await api('enrolments', { method: 'POST', body: { childId: kid.id, classId: cl.id, billingPeriod: period } });
     if (!r.ok) { toast((r.data && r.data.error) || 'Could not send that request — please try again.'); return; }
     id = r.data.enrolment.id; status = r.data.enrolment.status; live = true;
   }
-  S.enrolments.push({ id, childId: kid.id, classId: cl.id, status, created: todayISO(), live });
+  S.enrolments.push({ id, childId: kid.id, classId: cl.id, status, billingPeriod: period, created: todayISO(), live });
   addNotif(u.id, 'Enrolments', kid.id, status === 'Waitlisted' ? `${kid.first} has joined the waitlist for ${co.title}.` : `Enrolment requested: ${co.title} for ${kid.first} is waiting for confirmation.`, '/my-mea/courses');
   UI.enrol = null; save(); toast(status === 'Waitlisted' ? 'You’re on the waitlist.' : 'Enrolment request sent.'); go('/my-mea/courses');
 };
@@ -213,7 +217,7 @@ R('/my-mea/courses/:id', (p, q, u) => {
   const cl = classById(e.classId), co = clsCourse(cl), t = teacherOf(cl), sc = schedText(cl), nx = e.status === 'Active' ? nextSession(cl) : null, sum = q.view === 'summary';
   return {
     title: co.title, shell: 'parent', ptitle: co.title, psub: `${k.first} (${k.stage})`, body: h`<div class="cols-2b"><div class="panel"><h2><span class="l">${svcIcon(co.subject)}${sum ? 'Course summary' : 'Course details'}</span>${statusChip(e.status)}</h2>
-      <dl class="kv"><dt>Subject / level</dt><dd>${subj(co.subject).name} · ${levelName(co.level)}</dd>${co.board ? h`<dt>Exam board</dt><dd>${co.board}${co.tier ? ' · ' + co.tier : ''}</dd>` : ''}<dt>Class</dt><dd>${sc.days}, ${sc.time}</dd><dt>Term</dt><dd>${cl.term}</dd>${nx ? h`<dt>Next class</dt><dd>${whenText(nx)}</dd>` : ''}${t.publish ? h`<dt>Teacher</dt><dd>${t.name}</dd>` : ''}<dt>Fee</dt><dd>${money(classFee(cl))} per month</dd>${e.completedOn ? h`<dt>Completed</dt><dd>${fmtDate(e.completedOn, 'my')}</dd>` : ''}</dl>
+      <dl class="kv"><dt>Subject / level</dt><dd>${subj(co.subject).name} · ${levelName(co.level)}</dd>${co.board ? h`<dt>Exam board</dt><dd>${co.board}${co.tier ? ' · ' + co.tier : ''}</dd>` : ''}<dt>Class</dt><dd>${sc.days}, ${sc.time}</dd><dt>Term</dt><dd>${cl.term}</dd>${nx ? h`<dt>Next class</dt><dd>${whenText(nx)}</dd>` : ''}${t.publish ? h`<dt>Teacher</dt><dd>${t.name}</dd>` : ''}<dt>Fee</dt><dd>${money(classFee(cl))} per lesson</dd><dt>Billing</dt><dd>${e.billingPeriod === 'term' ? 'Termly' : 'Monthly'}</dd>${e.completedOn ? h`<dt>Completed</dt><dd>${fmtDate(e.completedOn, 'my')}</dd>` : ''}</dl>
       <div class="row" style="margin-top:18px">${e.status === 'Active' ? btn('Learning Hub', '/my-mea/learning/' + e.id, 'btn-primary', 'folder') : ''}${e.status === 'Active' && t.publish ? btn('Message Teacher', '/my-mea/messages/new' + qs({ enrolment: e.id }), 'btn-outline', 'mail') : ''}${['Pending Confirmation', 'Waitlisted'].includes(e.status) ? h`<button class="btn btn-danger" data-act="cancelEnrol" data-id="${e.id}">Cancel this request</button>` : ''}</div></div>
     <div class="panel"><h2><span class="l">${ic('book-open')}What ${k.first} will learn</span></h2><ul class="ticks">${co.topics.map(x => h`<li>${ic('check')}<span>${x}</span></li>`)}</ul><p style="margin-top:14px"><a href="#/courses/${co.slug}">View public course page</a></p></div></div>`
   };

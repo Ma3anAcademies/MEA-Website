@@ -20,7 +20,7 @@ export default async (req) => {
   }
   const account = await getParent(payload.id);
   if (!account || account.epoch !== payload.epoch) return json({ user: null, emailConfigured: emailOn, paymentsConfigured: paymentsOn });
-  return json({ user: { role: "parent", id: account.id, name: account.name, email: account.email, phone: account.phone }, emailConfigured: emailOn, paymentsConfigured: paymentsOn });
+  return json({ user: { role: "parent", id: account.id, name: account.name, email: account.email, phone: account.phone, whatsapp: account.whatsapp || "" }, emailConfigured: emailOn, paymentsConfigured: paymentsOn });
 };
 
 export const config = { path: "/api/session" };

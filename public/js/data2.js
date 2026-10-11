@@ -166,14 +166,18 @@ function buildSeed() {
     { from: 'u_salma', text: 'Hi Mr. Hassan, Ahmed found the algebraic fractions homework quite hard. Could you recommend any extra practice?', at: isoAdd(T, -2) + 'T19:40' },
     { from: 't_hassan', text: 'Thanks for letting me know. I’ve added a worked-examples sheet to the Learning Hub and we will revisit the topic in Tuesday’s class.', at: isoAdd(T, -1) + 'T09:15' }] });
 
-  // invoices
-  const fees = S.enrolments.filter(e => e.status === 'Active' && e.childId.startsWith('c_') && S.children.find(c => c.id === e.childId).parentId === 'u_salma').map(e => {
-    const cl = S.classes.find(c => c.id === e.classId), co = S.courses.find(c => c.id === cl.courseId), ch = S.children.find(c => c.id === e.childId);
-    return { child: ch.first, desc: co.title, amt: co.fee };
-  });
+  // invoices — fees are per lesson; each seeded invoice line charges for the real
+  // number of weekly lessons in that billing month, same math the live site uses.
   const m0 = T.slice(0, 7) + '-01', m1 = isoAdd(m0, 31).slice(0, 7) + '-01';
-  S.invoices.push({ id: 'INV-' + m0.slice(0, 4) + '-0091', parentId: 'u_salma', period: fmtDate(m0, 'my'), issued: isoAdd(m0, -7), due: m0, status: 'Paid', paidOn: isoAdd(m0, -2), lines: fees, discountPct: SITE.siblingDiscount });
-  S.invoices.push({ id: 'INV-' + m1.slice(0, 4) + '-0114', parentId: 'u_salma', period: fmtDate(m1, 'my'), issued: isoAdd(m1, -7), due: m1, status: 'Due', paidOn: '', lines: fees, discountPct: SITE.siblingDiscount });
+  const feesFor = from => S.enrolments.filter(e => e.status === 'Active' && e.childId.startsWith('c_') && S.children.find(c => c.id === e.childId).parentId === 'u_salma').map(e => {
+    const cl = S.classes.find(c => c.id === e.classId), co = S.courses.find(c => c.id === cl.courseId), ch = S.children.find(c => c.id === e.childId);
+    const feePerLesson = cl.feeOverride != null && cl.feeOverride !== '' ? +cl.feeOverride : co.fee;
+    const lessons = Math.max(1, classSessions(cl, from > cl.startDate ? from : cl.startDate, isoAdd(from > cl.startDate ? from : cl.startDate, 27)).length);
+    return { child: ch.first, desc: `${co.title} (${lessons} lesson${lessons === 1 ? '' : 's'} × £${feePerLesson})`, amt: Math.round(feePerLesson * lessons * 100) / 100 };
+  });
+  const feesPaid = feesFor(isoAdd(m0, -30)), feesDue = feesFor(m1);
+  S.invoices.push({ id: 'INV-' + m0.slice(0, 4) + '-0091', parentId: 'u_salma', period: fmtDate(m0, 'my'), issued: isoAdd(m0, -7), due: m0, status: 'Paid', paidOn: isoAdd(m0, -2), lines: feesPaid, discountPct: SITE.siblingDiscount });
+  S.invoices.push({ id: 'INV-' + m1.slice(0, 4) + '-0114', parentId: 'u_salma', period: fmtDate(m1, 'my'), issued: isoAdd(m1, -7), due: m1, status: 'Due', paidOn: '', lines: feesDue, discountPct: SITE.siblingDiscount });
 
   S.faqs = FAQ_SEED.map((a, i) => ({ id: 'f' + i, cat: a[0], q: a[1], a: a[2] }));
   S.enquiries.push({ id: 'q_1', ref: 'MEA-1041', date: isoAdd(T, -2), name: 'Rukhsana Begum', email: 'rukhsana@example.com', phone: '07700 900123', role: 'Parent', topic: 'Course & registration', team: 'Admissions team', message: 'Do you run a Year 6 maths class on Saturdays?', status: 'New' });

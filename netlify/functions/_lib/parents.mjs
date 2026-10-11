@@ -14,10 +14,11 @@ const TOKEN_TTL_MS = 60 * 60 * 1000; // 60 minutes
 /** Create a new parent account. If email sending is configured, the account starts
     unverified and { needsVerification, token } is returned for the caller to email —
     otherwise it's auto-verified immediately, so the site still works with zero setup. */
-export async function registerParent({ name, email, phone, password }) {
+export async function registerParent({ name, email, phone, whatsapp, password }) {
   const e = normEmail(email);
   if (!name || String(name).trim().length < 2) return { error: "Enter your full name.", field: "name" };
   if (!EMAIL.test(e)) return { error: "Enter a valid email address.", field: "email" };
+  if (!whatsapp || !String(whatsapp).trim()) return { error: "Enter a WhatsApp number.", field: "whatsapp" };
   const existing = await store().get(`e:${hex(e)}`, { type: "json" }).catch(() => null);
   if (existing) return { error: "An account with this email already exists. Sign in instead, or reset your password.", field: "email" };
   const problem = passwordProblem(password);
@@ -27,7 +28,7 @@ export async function registerParent({ name, email, phone, password }) {
   const salt = crypto.randomBytes(16);
   const hash = (await scrypt(String(password), salt, 64)).toString("hex");
   const willVerify = emailConfigured();
-  const account = { id, role: "parent", name: String(name).trim(), email: e, phone: phone || "", salt: salt.toString("hex"), hash, epoch: 1, createdAt: Date.now(), verified: !willVerify };
+  const account = { id, role: "parent", name: String(name).trim(), email: e, phone: phone || "", whatsapp: String(whatsapp).trim(), salt: salt.toString("hex"), hash, epoch: 1, createdAt: Date.now(), verified: !willVerify };
   await putAccount(account);
   await store().setJSON(`e:${hex(e)}`, id);
   if (!willVerify) return { account };
@@ -57,7 +58,7 @@ export async function listAllParents() {
   const out = [];
   for (const b of blobs) {
     const v = await store().get(b.key, { type: "json" }).catch(() => null);
-    if (v) out.push({ id: v.id, name: v.name, email: v.email, phone: v.phone, createdAt: v.createdAt, verified: v.verified });
+    if (v) out.push({ id: v.id, name: v.name, email: v.email, phone: v.phone, whatsapp: v.whatsapp || "", createdAt: v.createdAt, verified: v.verified });
   }
   return out;
 }
@@ -75,10 +76,10 @@ export async function changeParentPassword(id, current, next) {
   return { account: updated };
 }
 
-export async function updateParentProfile(id, { name, phone }) {
+export async function updateParentProfile(id, { name, phone, whatsapp }) {
   const a = await getAccount(id);
   if (!a) return { error: "Sign in again first." };
-  const updated = { ...a, name: name ? String(name).trim() : a.name, phone: phone ?? a.phone };
+  const updated = { ...a, name: name ? String(name).trim() : a.name, phone: phone ?? a.phone, whatsapp: whatsapp ?? a.whatsapp };
   await putAccount(updated);
   return { account: updated };
 }

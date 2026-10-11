@@ -31,7 +31,7 @@ export default async (req, context) => {
     if (error) return err(400, error);
     const sessToken = signToken({ role: "parent", id: account.id, name: account.name, email: account.email, epoch: account.epoch, exp: Math.floor(Date.now() / 1000) + SESSION_SECONDS });
     return json(
-      { ok: true, user: { role: "parent", id: account.id, name: account.name, email: account.email, phone: account.phone } },
+      { ok: true, user: { role: "parent", id: account.id, name: account.name, email: account.email, phone: account.phone, whatsapp: account.whatsapp || "" } },
       200,
       { "set-cookie": sessionCookie(req, sessToken, SESSION_SECONDS) }
     );

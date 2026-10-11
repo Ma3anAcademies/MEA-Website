@@ -4,6 +4,7 @@ import { listChildren, listAllChildren } from "./_lib/children.mjs";
 import { listEnrolments } from "./_lib/enrolments.mjs";
 import { listCourses } from "./_lib/courses.mjs";
 import { listClasses } from "./_lib/classes.mjs";
+import { periodTotal } from "./_lib/pricing.mjs";
 import { json, err } from "./_lib/http.mjs";
 
 export default async (req) => {
@@ -23,6 +24,9 @@ export default async (req) => {
     if (body.generateForPeriod) {
       // One invoice per parent with an active enrolment, built from their children's real
       // active classes - the same billing run a small tuition business does monthly.
+      // Fees are per lesson: each enrolment's own billing-period choice ("month" or "term",
+      // picked by the family at enrolment) decides how many of that class's real weekly
+      // lessons the invoice line covers.
       const [allEnrolments, allChildren, allClasses, allCourses] = await Promise.all([listEnrolments(), listAllChildren(), listClasses(), listCourses()]);
       const active = allEnrolments.filter((e) => e.status === "Active");
       const byParent = new Map();
@@ -30,8 +34,10 @@ export default async (req) => {
         const child = allChildren.find((c) => c.id === e.childId); if (!child) continue;
         const cls = allClasses.find((c) => c.id === e.classId); if (!cls) continue;
         const course = allCourses.find((c) => c.id === cls.courseId); if (!course) continue;
-        const fee = cls.feeOverride != null ? Number(cls.feeOverride) : Number(course.fee || 0);
-        const list = byParent.get(child.parentId) || []; list.push({ child: child.first, desc: course.title, amount: fee }); byParent.set(child.parentId, list);
+        const period = e.billingPeriod === "term" ? "term" : "month";
+        const { feePerLesson, lessons, total } = periodTotal(cls, course, period);
+        const desc = `${course.title} (${lessons} lesson${lessons === 1 ? "" : "s"} × £${feePerLesson.toFixed(2)}, ${period === "term" ? "this term" : "this month"})`;
+        const list = byParent.get(child.parentId) || []; list.push({ child: child.first, desc, amount: total }); byParent.set(child.parentId, list);
       }
       const period = body.period || new Date().toLocaleString("en-GB", { month: "long", year: "numeric" });
       const created = [];

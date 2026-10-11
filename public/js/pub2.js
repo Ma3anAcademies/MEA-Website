@@ -163,7 +163,7 @@ Actions.contactAgain = () => { UI.contactSent = null; render({ keepScroll: true 
 /* ---------------- LEGAL ---------------- */
 const LEGAL = {
   privacy: ['Privacy Policy', ['We collect only the information needed to deliver and administer MEA classes, such as parent contact details and each child’s name, stage and enrolments.', 'Required service information is kept separate from optional marketing consent. You can change your marketing preference at any time in Account Settings.', 'Parents can only see their own children’s information. Teachers see only the classes they teach.', 'You can request access to, correction of, or deletion of your data from Help & Support in My MEA.', 'We keep records only for as long as they are needed for education delivery, administration and legal obligations.']],
-  terms: ['Terms & Conditions', ['Enrolment is confirmed by MEA. Requests may show as Pending Confirmation until a place is confirmed.', 'Fees are charged monthly in advance. You may cancel or pause with 7 days’ notice.', 'Lesson resources and homework are for enrolled families only and may not be shared publicly.', 'Class times may change; we will notify you through My MEA and by email.', 'Full refund and cancellation wording will be confirmed by MEA before launch.']],
+  terms: ['Terms & Conditions', ['Enrolment is confirmed by MEA. Requests may show as Pending Confirmation until a place is confirmed.', 'Fees are charged per lesson, billed either monthly or termly as chosen at enrolment, in advance. You may cancel or pause with 7 days’ notice.', 'Lesson resources and homework are for enrolled families only and may not be shared publicly.', 'Class times may change; we will notify you through My MEA and by email.', 'Full refund and cancellation wording will be confirmed by MEA before launch.']],
   cookies: ['Cookies Policy', ['This website uses only the storage needed to remember your sign-in and Course Finder choices.', 'Optional analytics or marketing cookies, if introduced later, will only be used with your consent.', 'You can clear stored data from your browser settings at any time.']],
   safeguarding: ['Safeguarding', ['MEA is committed to keeping children safe. Teacher communication with families takes place through approved MEA channels.', 'Teacher phone numbers and personal email addresses are never published.', 'In the first release, direct messaging is between parents and MEA staff or assigned teachers only. There is no private teacher-to-student messaging.', 'If you have a concern about a child’s wellbeing, contact MEA straight away using the Contact page.']]
 };
@@ -217,7 +217,7 @@ R('/account/create', (p, q, u) => {
   return authLayout('Create your parent account', 'It takes a few minutes. You will add your children after your account is created.', h`
   <form data-form="create" novalidate><input type="hidden" name="return" value="${safeReturn(q.return)}"><div class="form-grid">
     ${fld({ name: 'name', label: 'Parent / guardian full name', req: 1, full: 1, auto: 'name' })}${fld({ name: 'email', label: 'Email address', type: 'email', req: 1, full: 1, auto: 'email' })}
-    ${fld({ name: 'phone', label: 'UK contact number', req: 1, auto: 'tel', ph: '07xxx xxxxxx' })}${fld({ name: 'whatsapp', label: 'WhatsApp number', hint: 'Only if different from your contact number.', ph: 'Optional' })}
+    ${fld({ name: 'phone', label: 'UK contact number', req: 1, auto: 'tel', ph: '07xxx xxxxxx' })}${fld({ name: 'whatsapp', label: 'WhatsApp number', req: 1, hint: 'We use this to reach you about your child’s classes.', ph: '07xxx xxxxxx' })}
     ${fld({ name: 'password', label: 'Password', type: 'password', req: 1, auto: 'new-password', hint: 'At least 8 characters, including a number.' })}${fld({ name: 'confirm', label: 'Confirm password', type: 'password', req: 1, auto: 'new-password' })}</div>
     <div class="stack" style="margin-top:14px">${chk('terms', h`I agree to the <a href="#/terms" target="_blank">Terms &amp; Conditions</a> and <a href="#/privacy" target="_blank">Privacy Policy</a>. <span aria-hidden="true">*</span>`, false, true)}${chk('marketing', 'Send me occasional news and offers from MEA (optional).', false)}</div>
     <button class="btn btn-pink btn-block" type="submit" style="margin-top:18px">Create Account</button></form>
@@ -228,12 +228,12 @@ Forms.create = async (f, v) => {
   if (!v.name) e.name = 'Enter your full name.'; if (!isEmail(v.email)) e.email = 'Enter a valid email address, for example name@example.com.';
   else if (!LIVE_BACKEND && S.users.some(x => x.email.toLowerCase() === v.email.toLowerCase() && !x.synthetic)) e.email = 'An account with this email already exists. Sign in instead, or reset your password.';
   if (!isUKPhone(v.phone)) e.phone = 'Enter a UK phone number, for example 07123 456789.';
-  if (v.whatsapp && !isUKPhone(v.whatsapp)) e.whatsapp = 'Enter a UK number, or leave this blank.';
+  if (!v.whatsapp) e.whatsapp = 'Enter a WhatsApp number.'; else if (!isUKPhone(v.whatsapp)) e.whatsapp = 'Enter a UK number, for example 07123 456789.';
   if (v.password.length < 8 || !/\d/.test(v.password)) e.password = 'Use at least 8 characters, including a number.';
   if (v.confirm !== v.password) e.confirm = 'The passwords do not match.'; if (!v.terms) e.terms = 'You need to accept the terms and privacy policy to create an account.';
   if (!showErrors(f, e)) return;
   if (LIVE_BACKEND) {
-    const r = await api('register', { method: 'POST', body: { name: v.name, email: v.email, phone: v.phone, password: v.password } });
+    const r = await api('register', { method: 'POST', body: { name: v.name, email: v.email, phone: v.phone, whatsapp: v.whatsapp, password: v.password } });
     if (!r.ok) { showErrors(f, { [(r.data && r.data.field) || 'email']: (r.data && r.data.error) || 'Something went wrong. Please try again.' }); return; }
     if (r.data.needsVerification) { go('/account/verify-email' + qs({ email: r.data.email, return: v.return }), true); return; }
     mirrorSignedInUser(r.data.user);
