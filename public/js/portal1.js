@@ -154,7 +154,7 @@ R('/my-mea/courses/find', (p, q, u) => {
   const list = findClasses({ sys: kid.sys, level: F.all ? '' : lv, subject: F.subject || '', board: F.board || '', day: F.day ?? '', q: F.q || '' }).filter(cl => !F.avail || avail(cl).k === F.avail);
   return {
     title: 'Find a Course', shell: 'parent', ptitle: 'Find a Course', psub: `Classes for ${kid.first} (${kid.stage})`, body: h`
-    <div class="toolbar">${kidPicker(u, false)}</div>
+    <div class="toolbar">${kidPicker(u, false)}<div class="grow"></div>${btn('Add Child', '/my-mea/children/add', 'btn-outline', 'plus')}</div>
     <div class="filters" style="margin-bottom:20px"><div class="fgrid" style="grid-template-columns:repeat(5,minmax(0,1fr))">
       <div class="field"><label for="fc_s">Subject</label><select class="sel" id="fc_s" data-on="fc" data-k="subject"><option value="">All subjects</option>${subs.map(s => h`<option value="${s.id}" ${F.subject === s.id ? raw('selected') : ''}>${s.name}</option>`)}</select></div>
       ${boards.length ? h`<div class="field"><label for="fc_b">Exam board</label><select class="sel" id="fc_b" data-on="fc" data-k="board"><option value="">Any board</option>${boards.map(b => h`<option ${F.board === b ? raw('selected') : ''}>${b}</option>`)}</select></div>` : ''}
@@ -162,12 +162,92 @@ R('/my-mea/courses/find', (p, q, u) => {
       <div class="field"><label for="fc_a">Availability</label><select class="sel" id="fc_a" data-on="fc" data-k="avail"><option value="">Any</option><option value="open" ${F.avail === 'open' ? raw('selected') : ''}>Places available</option><option value="limited" ${F.avail === 'limited' ? raw('selected') : ''}>Limited places</option><option value="full" ${F.avail === 'full' ? raw('selected') : ''}>Full – waitlist</option></select></div>
       <div class="field"><label for="fc_q">Search</label><input class="inp" id="fc_q" type="search" value="${F.q || ''}" data-on="fc" data-k="q" placeholder="Course or subject"></div></div>
       <label class="check" style="margin-top:12px"><input type="checkbox" data-on="fcAll" ${F.all ? raw('checked') : ''}><span>Also show other stages in ${SYS[kid.sys].short}</span></label></div>
-    <p class="muted"><strong>${plural(list.length, 'class', 'classes')}</strong> available for ${kid.first}.</p>
-    ${list.length ? h`<div class="grid g3">${list.map(cl => classCard(cl, u))}</div>` : emptyState({ icon: 'search', title: 'No classes match', text: 'Try changing the filters, or contact us and we will help you find a suitable class.', action: btn('Contact Support', '/my-mea/support', 'btn-primary') })}`
+    <p class="muted"><strong>${plural(list.length, 'class', 'classes')}</strong> available for ${kid.first}. Select more than one to enrol in several at once${SITE.multiCourseLessons ? ` — select ${SITE.multiCourseLessons}+ lessons in total and get ${SITE.multiCourseDiscount}% off` : ''}.</p>
+    ${list.length ? h`<div class="grid g3">${list.map(cl => classCard(cl, u, null, null, { select: true }))}</div>` : emptyState({ icon: 'search', title: 'No classes match', text: 'Try changing the filters, or contact us and we will help you find a suitable class.', action: btn('Contact Support', '/my-mea/support', 'btn-primary') })}
+    ${(UI.basket || []).length ? h`<div class="panel row between" style="position:sticky;bottom:12px;margin-top:20px;background:var(--blue-d);color:#fff;box-shadow:0 6px 24px rgba(0,0,0,.25)"><div><strong>${plural((UI.basket || []).length, 'course')} selected</strong><div class="small" style="opacity:.85">Review children, billing and any discount before confirming.</div></div><div class="row" style="gap:8px"><button class="btn btn-ghost" data-act="basketClear" style="color:#fff">Clear</button><a class="btn btn-pink" href="#/my-mea/courses/basket">Review Selection</a></div></div>` : ''}`
   };
 }, PR);
 Changes.fc = el => { (UI.fc = UI.fc || {})[el.dataset.k] = el.value; render({ keepScroll: true }); };
 Changes.fcAll = el => { (UI.fc = UI.fc || {}).all = el.checked; render({ keepScroll: true }); };
+Actions.basketToggle = t => {
+  const u = me(), id = t.dataset.id; UI.basket = UI.basket || [];
+  const i = UI.basket.findIndex(b => b.classId === id);
+  if (i >= 0) UI.basket.splice(i, 1);
+  else UI.basket.push({ classId: id, child: kidSel(u, false), period: 'month', customMode: 'lessons', customLessons: 4, customUntil: '' });
+  render({ keepScroll: true });
+};
+Actions.basketClear = () => { UI.basket = []; render({ keepScroll: true }); };
+
+/* Review Selection — confirm several courses (possibly for different children)
+   in one go. Each item picks its own child + billing; the multi-course discount
+   (admin-set in Setup & Integrations → Site Details) is worked out from the
+   combined lesson count across every item here, and shown live as items change. */
+function basketItemTotal(b, cl) {
+  return b.period === 'custom'
+    ? customPeriodTotal(cl, { lessons: b.customMode === 'until' ? undefined : b.customLessons, until: b.customMode === 'until' ? b.customUntil : undefined })
+    : periodTotal(cl, b.period);
+}
+R('/my-mea/courses/basket', (p, q, u) => {
+  const ks = myKids(u); if (!ks.length) return { redirect: '/my-mea/children/add?first=1' };
+  UI.basket = (UI.basket || []).filter(b => classById(b.classId));
+  if (!UI.basket.length) return { redirect: '/my-mea/courses/find' };
+  const items = UI.basket.map((b, i) => { const cl = classById(b.classId), co = clsCourse(cl); return { i, b, cl, co, t: basketItemTotal(b, cl) }; });
+  const totalLessons = items.reduce((a, x) => a + x.t.lessons, 0), discountPct = multiCourseDiscountPct(totalLessons);
+  const grossTotal = items.reduce((a, x) => a + x.t.total, 0), discountAmt = discountPct ? Math.round(grossTotal * discountPct) / 100 : 0, netTotal = grossTotal - discountAmt;
+  return {
+    title: 'Review Selection', shell: 'parent', ptitle: 'Review Selection', psub: `${plural(items.length, 'course')} selected — review each one, then confirm together`, body: h`
+    <div class="cols-2" style="grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)"><div class="stack">
+    ${items.map(x => h`<div class="panel"><div class="row between"><h2 style="margin:0;font-size:1.1rem">${x.co.title}</h2><button type="button" class="btn btn-ghost btn-sm" data-act="basketRemove" data-i="${x.i}">${ic('x')}Remove</button></div>
+      <p class="small muted" style="margin:2px 0 10px">${schedText(x.cl).short}</p>
+      <div class="field" style="max-width:260px"><label for="bk_child_${x.i}">Child</label><select class="sel" id="bk_child_${x.i}" data-on="basketChild" data-i="${x.i}">${ks.map(k => h`<option value="${k.id}" ${x.b.child === k.id ? raw('selected') : ''}>${k.first} (${k.stage})</option>`)}</select></div>
+      <div class="pick" style="margin-top:10px">${[['month', 'Pay monthly', periodTotal(x.cl, 'month')], ['term', 'Pay termly', periodTotal(x.cl, 'term')]].map(([k, label, t]) => h`<button type="button" data-act="basketPeriod" data-i="${x.i}" data-p="${k}" aria-pressed="${x.b.period === k}">${label}<small>${t.lessons} lesson${t.lessons === 1 ? '' : 's'} × ${money(t.feePerLesson)} = ${money(t.total)}</small></button>`)}
+        <button type="button" data-act="basketPeriod" data-i="${x.i}" data-p="custom" aria-pressed="${x.b.period === 'custom'}">Custom<small>Exact lessons, or until a date</small></button></div>
+      ${x.b.period === 'custom' ? h`<div class="panel" style="margin-top:10px;background:var(--blue-50)">
+        <div class="seg" role="group" aria-label="Custom billing type" style="margin-bottom:10px"><button type="button" data-act="basketCustomMode" data-i="${x.i}" data-m="lessons" aria-pressed="${x.b.customMode !== 'until'}">${ic('calculator')}Number of lessons</button><button type="button" data-act="basketCustomMode" data-i="${x.i}" data-m="until" aria-pressed="${x.b.customMode === 'until'}">${ic('calendar')}Until a date</button></div>
+        ${x.b.customMode === 'until'
+          ? h`<div class="field" style="max-width:220px"><label for="bk_until_${x.i}">Enrol until</label><input class="inp" id="bk_until_${x.i}" type="date" min="${todayISO()}" max="${x.cl.endDate}" value="${x.b.customUntil || ''}" data-on="basketUntil" data-i="${x.i}"></div>`
+          : h`<div class="field" style="max-width:160px"><label for="bk_lessons_${x.i}">Exact number of lessons</label><input class="inp" id="bk_lessons_${x.i}" type="number" min="1" max="60" value="${x.b.customLessons || 4}" data-on="basketLessons" data-i="${x.i}"></div>`}
+        <p class="small muted" style="margin-top:10px">${x.t.lessons} lesson${x.t.lessons === 1 ? '' : 's'} × ${money(x.t.feePerLesson)} = <strong>${money(x.t.total)}</strong>${x.b.customMode === 'until' && x.b.customUntil ? h` (through ${fmtDate(x.b.customUntil, 'dmy')})` : ''}</p></div>` : ''}
+      </div>`)}
+    </div>
+    <aside class="panel" aria-label="Summary" style="position:sticky;top:20px;align-self:start"><h2>Summary</h2>
+      <dl class="kv">${items.map(x => h`<dt>${x.co.title}</dt><dd>${money(x.t.total)}</dd>`)}<dt>Total lessons</dt><dd>${totalLessons}</dd></dl>
+      ${discountPct ? h`<div class="alert alert-ok" style="margin:12px 0">${ic('sparkles')}<span><strong>${discountPct}% multi-course discount applied</strong> for selecting ${totalLessons} lessons in total.</span></div>`
+        : (SITE.multiCourseLessons ? h`<div class="alert alert-info" style="margin:12px 0">${ic('info')}<span>Select ${Math.max(0, SITE.multiCourseLessons - totalLessons)} more lesson${SITE.multiCourseLessons - totalLessons === 1 ? '' : 's'} in total to unlock ${SITE.multiCourseDiscount}% off.</span></div>` : '')}
+      <dl class="kv">${discountPct ? h`<dt>Subtotal</dt><dd>${money(grossTotal)}</dd><dt>Discount (${discountPct}%)</dt><dd>−${money(discountAmt)}</dd>` : ''}<dt><strong>Total</strong></dt><dd><strong>${money(netTotal)}</strong></dd></dl>
+      <form data-form="basketConfirm" novalidate>${chk('terms', h`I have read the <a href="#/terms" target="_blank">key terms</a> and understand fees are charged per lesson.`, false, true)}
+        <button class="btn btn-pink" type="submit" style="margin-top:14px;width:100%">Confirm ${plural(items.length, 'Enrolment')}</button>
+        <a class="btn btn-outline" style="margin-top:8px;width:100%" href="#/my-mea/courses/find">Add another course</a></form></aside></div>`
+  };
+}, PR);
+Actions.basketRemove = t => { UI.basket.splice(+t.dataset.i, 1); render({ keepScroll: true }); };
+Changes.basketChild = el => { UI.basket[+el.dataset.i].child = el.value; render({ keepScroll: true }); };
+Actions.basketPeriod = t => { UI.basket[+t.dataset.i].period = t.dataset.p; render({ keepScroll: true }); };
+Actions.basketCustomMode = t => { UI.basket[+t.dataset.i].customMode = t.dataset.m; render({ keepScroll: true }); };
+Changes.basketLessons = el => { UI.basket[+el.dataset.i].customLessons = Math.max(1, Math.min(60, +el.value || 1)); render({ keepScroll: true }); };
+Changes.basketUntil = el => { UI.basket[+el.dataset.i].customUntil = el.value; render({ keepScroll: true }); };
+Forms.basketConfirm = async (f, v) => {
+  if (!showErrors(f, v.terms ? {} : { terms: 'Please confirm you have read the key terms.' })) return;
+  const u = me(), items = UI.basket.map(b => { const cl = classById(b.classId); return { b, cl, t: basketItemTotal(b, cl) }; });
+  const totalLessons = items.reduce((a, x) => a + x.t.lessons, 0), discountPct = multiCourseDiscountPct(totalLessons);
+  let n = 0;
+  for (const { b, cl, t } of items) {
+    const co = clsCourse(cl), kid = childById(b.child);
+    let status = avail(cl).k === 'full' ? 'Waitlisted' : 'Pending Confirmation', id = uid('en'), live = false;
+    const billingPeriod = b.period === 'custom' ? 'custom' : b.period;
+    const customLessons = b.period === 'custom' ? t.lessons : undefined;
+    const customUntil = b.period === 'custom' && b.customMode === 'until' ? b.customUntil : undefined;
+    if (LIVE_BACKEND && u.live && kid.live) {
+      const r = await api('enrolments', { method: 'POST', body: { childId: kid.id, classId: cl.id, billingPeriod, customLessons, customUntil, bundleDiscountPct: discountPct } });
+      if (!r.ok) { toast((r.data && r.data.error) || `Could not enrol ${kid.first} in ${co.title} — please try again.`); continue; }
+      id = r.data.enrolment.id; status = r.data.enrolment.status; live = true;
+    }
+    S.enrolments.push({ id, childId: kid.id, classId: cl.id, status, billingPeriod, customLessons, customUntil, bundleDiscountPct: discountPct, created: todayISO(), live });
+    addNotif(u.id, 'Enrolments', kid.id, status === 'Waitlisted' ? `${kid.first} has joined the waitlist for ${co.title}.` : `Enrolment requested: ${co.title} for ${kid.first} is waiting for confirmation.`, '/my-mea/courses');
+    n++;
+  }
+  UI.basket = []; save(); toast(`${n} enrolment${n === 1 ? '' : 's'} requested.`); go('/my-mea/courses');
+};
 
 /* Enrol / waitlist confirmation */
 function enrolView(mode) {
@@ -176,7 +256,7 @@ function enrolView(mode) {
     const co = clsCourse(cl), a = avail(cl), ks = myKids(u);
     if (mode === 'enrol' && a.k === 'full') return { redirect: '/my-mea/courses/waitlist/' + cl.id + (q.child ? qs({ child: q.child }) : '') };
     if (!ks.length) return { title: 'Enrol', shell: 'parent', ptitle: mode === 'waitlist' ? 'Join Waitlist' : 'Request Enrolment', psub: co.title, body: h`${emptyState({ icon: 'user-plus', title: 'Add your child first', text: 'We need your child’s year and stage to check this class is the right fit.', action: btn('Add Your First Child', '/my-mea/children/add?first=1', 'btn-pink') })}` };
-    const E = UI.enrol && UI.enrol.classId === cl.id ? UI.enrol : (UI.enrol = { classId: cl.id, child: '', period: 'month' });
+    const E = UI.enrol && UI.enrol.classId === cl.id ? UI.enrol : (UI.enrol = { classId: cl.id, child: '', period: 'month', customMode: 'lessons', customLessons: 4, customUntil: '' });
     if (!E.period) E.period = 'month';
     if (q.child && childById(q.child) && childById(q.child).parentId === u.id) E.child = q.child;
     if (!E.child) E.child = ks.length === 1 ? ks[0].id : (ks.find(k => !stageMismatch(k, co)) || ks[0]).id;
@@ -187,11 +267,18 @@ function enrolView(mode) {
       title, shell: 'parent', ptitle: title, psub: `Review the details before you submit`, body: h`<div class="cols-2" style="grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)"><div class="stack">
       <div class="panel"><h2>1. Choose child</h2><div class="pick">${ks.map(k => h`<button type="button" data-act="enrolKid" data-id="${k.id}" aria-pressed="${E.child === k.id}">${k.first}<small>${k.stage}${stageMismatch(k, co) ? ' · different stage' : ' · matches this class'}</small></button>`)}</div>
         ${mm ? h`<div class="alert alert-warn" style="margin-top:14px">${ic('alert-triangle')}<span><strong>Check the stage.</strong> ${kid.first} is recorded as ${kid.stage} (${SYS[kid.sys].short}), but this class is for ${levelName(co.level)} in ${SYS[co.sys].short}. You can still continue if you are sure it is right.</span></div>` : ''}${dup ? h`<div class="alert alert-info" style="margin-top:14px">${ic('info')}<span>${kid.first} already has a ${dup.status.toLowerCase()} request for this class.</span></div>` : ''}</div>
-      <div class="panel"><h2>2. How do you want to pay?</h2><p class="muted" style="margin-top:-4px">Fees are charged per lesson. Choose how often you'd like to be billed — we'll work out the total from this class's real weekly schedule.</p>
-        <div class="pick">${[['month', 'Pay monthly', periodTotal(cl, 'month')], ['term', 'Pay termly', periodTotal(cl, 'term')]].map(([k, label, t]) => h`<button type="button" data-act="enrolPeriod" data-p="${k}" aria-pressed="${E.period === k}">${label}<small>${t.lessons} lesson${t.lessons === 1 ? '' : 's'} × ${money(t.feePerLesson)} = ${money(t.total)}</small></button>`)}</div></div>
-      <div class="panel"><h2>3. Confirm</h2><form data-form="enrol" data-mode="${mode}" novalidate>${chk('terms', h`I have read the <a href="#/terms" target="_blank">key terms</a> and understand fees are charged per lesson, billed ${E.period === 'term' ? 'termly' : 'monthly'}.`, false, true)}<div class="row" style="margin-top:16px"><button class="btn btn-pink" type="submit" ${dup ? raw('disabled') : ''}>${mode === 'waitlist' ? 'Join Waitlist' : 'Request Enrolment'}</button><a class="btn btn-outline" href="#/courses/${co.slug}">Cancel</a></div></form>
+      <div class="panel"><h2>2. How do you want to pay?</h2><p class="muted" style="margin-top:-4px">Fees are charged per lesson. Choose how often you'd like to be billed — we'll work out the total from this class's real weekly schedule. Prefer a fixed block instead? Choose Custom.</p>
+        <div class="pick">${[['month', 'Pay monthly', periodTotal(cl, 'month')], ['term', 'Pay termly', periodTotal(cl, 'term')]].map(([k, label, t]) => h`<button type="button" data-act="enrolPeriod" data-p="${k}" aria-pressed="${E.period === k}">${label}<small>${t.lessons} lesson${t.lessons === 1 ? '' : 's'} × ${money(t.feePerLesson)} = ${money(t.total)}</small></button>`)}
+          <button type="button" data-act="enrolPeriod" data-p="custom" aria-pressed="${E.period === 'custom'}">Custom<small>Exact lessons, or until a date</small></button></div>
+        ${E.period === 'custom' ? h`<div class="panel" style="margin-top:12px;background:var(--blue-50)">
+          <div class="seg" role="group" aria-label="Custom billing type" style="margin-bottom:10px"><button type="button" data-act="enrolCustomMode" data-m="lessons" aria-pressed="${E.customMode !== 'until'}">${ic('calculator')}Number of lessons</button><button type="button" data-act="enrolCustomMode" data-m="until" aria-pressed="${E.customMode === 'until'}">${ic('calendar')}Until a date</button></div>
+          ${E.customMode === 'until'
+            ? h`<div class="field" style="max-width:220px"><label for="en_until">Enrol until</label><input class="inp" id="en_until" type="date" min="${todayISO()}" max="${cl.endDate}" value="${E.customUntil || ''}" data-on="enrolUntil"></div>`
+            : h`<div class="field" style="max-width:160px"><label for="en_lessons">Exact number of lessons</label><input class="inp" id="en_lessons" type="number" min="1" max="60" value="${E.customLessons || 4}" data-on="enrolLessons"></div>`}
+          <p class="small muted" style="margin-top:10px">${customPeriodTotal(cl, E).lessons} lesson${customPeriodTotal(cl, E).lessons === 1 ? '' : 's'} × ${money(classFee(cl))} = <strong>${money(customPeriodTotal(cl, E).total)}</strong>${E.customMode === 'until' && E.customUntil ? h` (through ${fmtDate(E.customUntil, 'dmy')})` : ''}</p></div>` : ''}</div>
+      <div class="panel"><h2>3. Confirm</h2><form data-form="enrol" data-mode="${mode}" novalidate>${chk('terms', h`I have read the <a href="#/terms" target="_blank">key terms</a> and understand fees are charged per lesson${E.period === 'custom' ? ', for the exact lessons chosen above' : `, billed ${E.period === 'term' ? 'termly' : 'monthly'}`}.`, false, true)}<div class="row" style="margin-top:16px"><button class="btn btn-pink" type="submit" ${dup ? raw('disabled') : ''}>${mode === 'waitlist' ? 'Join Waitlist' : 'Request Enrolment'}</button><a class="btn btn-outline" href="#/courses/${co.slug}">Cancel</a></div></form>
         <p class="form-note" style="margin-top:12px">${mode === 'waitlist' ? 'You will be notified if a place becomes available.' : 'Your request will show as Pending Confirmation until MEA confirms your place.'}</p></div></div>
-      <aside class="panel" aria-label="Summary"><h2>Summary</h2><dl class="kv"><dt>Child</dt><dd>${kid.first} (${kid.stage})</dd><dt>Course</dt><dd>${co.title}</dd><dt>Subject / level</dt><dd>${subj(co.subject).name} · ${levelName(co.level)}</dd><dt>Day / time</dt><dd>${sc.days}<br>${sc.time} (UK time)</dd><dt>Start / term</dt><dd>${startsLater(cl) ? fmtDate(cl.startDate, 'long') : cl.term}</dd><dt>Fee</dt><dd>${money(classFee(cl))} per lesson</dd><dt>${E.period === 'term' ? 'Termly total' : 'Monthly total'}</dt><dd><strong>${money(periodTotal(cl, E.period).total)}</strong></dd><dt>Status</dt><dd>${chip(a.label, a.cls, a.icon)}</dd></dl></aside></div>`
+      <aside class="panel" aria-label="Summary"><h2>Summary</h2><dl class="kv"><dt>Child</dt><dd>${kid.first} (${kid.stage})</dd><dt>Course</dt><dd>${co.title}</dd><dt>Subject / level</dt><dd>${subj(co.subject).name} · ${levelName(co.level)}</dd><dt>Day / time</dt><dd>${sc.days}<br>${sc.time} (UK time)</dd><dt>Start / term</dt><dd>${startsLater(cl) ? fmtDate(cl.startDate, 'long') : cl.term}</dd><dt>Fee</dt><dd>${money(classFee(cl))} per lesson</dd><dt>${E.period === 'term' ? 'Termly total' : E.period === 'custom' ? 'Custom total' : 'Monthly total'}</dt><dd><strong>${money((E.period === 'custom' ? customPeriodTotal(cl, E) : periodTotal(cl, E.period)).total)}</strong></dd><dt>Status</dt><dd>${chip(a.label, a.cls, a.icon)}</dd></dl></aside></div>`
     };
   };
 }
@@ -199,16 +286,21 @@ R('/my-mea/courses/enrol/:classId', enrolView('enrol'), PR);
 R('/my-mea/courses/waitlist/:classId', enrolView('waitlist'), PR);
 Actions.enrolKid = t => { UI.enrol.child = t.dataset.id; render({ keepScroll: true }); };
 Actions.enrolPeriod = t => { UI.enrol.period = t.dataset.p; render({ keepScroll: true }); };
+Actions.enrolCustomMode = t => { UI.enrol.customMode = t.dataset.m; render({ keepScroll: true }); };
+Changes.enrolLessons = el => { UI.enrol.customLessons = Math.max(1, Math.min(60, +el.value || 1)); render({ keepScroll: true }); };
+Changes.enrolUntil = el => { UI.enrol.customUntil = el.value; render({ keepScroll: true }); };
 Forms.enrol = async (f, v) => {
   const u = me(), E = UI.enrol, cl = classById(E.classId), co = clsCourse(cl), kid = childById(E.child), mode = f.dataset.mode, period = E.period || 'month';
   if (!showErrors(f, v.terms ? {} : { terms: 'Please confirm you have read the key terms.' })) return;
+  const t = period === 'custom' ? customPeriodTotal(cl, E) : periodTotal(cl, period);
+  const customLessons = period === 'custom' ? t.lessons : undefined, customUntil = period === 'custom' && E.customMode === 'until' ? E.customUntil : undefined;
   let status = mode === 'waitlist' || avail(cl).k === 'full' ? 'Waitlisted' : 'Pending Confirmation', id = uid('en'), live = false;
   if (LIVE_BACKEND && u.live && kid.live) {
-    const r = await api('enrolments', { method: 'POST', body: { childId: kid.id, classId: cl.id, billingPeriod: period } });
+    const r = await api('enrolments', { method: 'POST', body: { childId: kid.id, classId: cl.id, billingPeriod: period, customLessons, customUntil } });
     if (!r.ok) { toast((r.data && r.data.error) || 'Could not send that request — please try again.'); return; }
     id = r.data.enrolment.id; status = r.data.enrolment.status; live = true;
   }
-  S.enrolments.push({ id, childId: kid.id, classId: cl.id, status, billingPeriod: period, created: todayISO(), live });
+  S.enrolments.push({ id, childId: kid.id, classId: cl.id, status, billingPeriod: period, customLessons, customUntil, created: todayISO(), live });
   addNotif(u.id, 'Enrolments', kid.id, status === 'Waitlisted' ? `${kid.first} has joined the waitlist for ${co.title}.` : `Enrolment requested: ${co.title} for ${kid.first} is waiting for confirmation.`, '/my-mea/courses');
   UI.enrol = null; save(); toast(status === 'Waitlisted' ? 'You’re on the waitlist.' : 'Enrolment request sent.'); go('/my-mea/courses');
 };
@@ -217,7 +309,7 @@ R('/my-mea/courses/:id', (p, q, u) => {
   const cl = classById(e.classId), co = clsCourse(cl), t = teacherOf(cl), sc = schedText(cl), nx = e.status === 'Active' ? nextSession(cl) : null, sum = q.view === 'summary';
   return {
     title: co.title, shell: 'parent', ptitle: co.title, psub: `${k.first} (${k.stage})`, body: h`<div class="cols-2b"><div class="panel"><h2><span class="l">${svcIcon(co.subject)}${sum ? 'Course summary' : 'Course details'}</span>${statusChip(e.status)}</h2>
-      <dl class="kv"><dt>Subject / level</dt><dd>${subj(co.subject).name} · ${levelName(co.level)}</dd>${co.board ? h`<dt>Exam board</dt><dd>${co.board}${co.tier ? ' · ' + co.tier : ''}</dd>` : ''}<dt>Class</dt><dd>${sc.days}, ${sc.time}</dd><dt>Term</dt><dd>${cl.term}</dd>${nx ? h`<dt>Next class</dt><dd>${whenText(nx)}</dd>` : ''}${t.publish ? h`<dt>Teacher</dt><dd>${t.name}</dd>` : ''}<dt>Fee</dt><dd>${money(classFee(cl))} per lesson</dd><dt>Billing</dt><dd>${e.billingPeriod === 'term' ? 'Termly' : 'Monthly'}</dd>${e.completedOn ? h`<dt>Completed</dt><dd>${fmtDate(e.completedOn, 'my')}</dd>` : ''}</dl>
+      <dl class="kv"><dt>Subject / level</dt><dd>${subj(co.subject).name} · ${levelName(co.level)}</dd>${co.board ? h`<dt>Exam board</dt><dd>${co.board}${co.tier ? ' · ' + co.tier : ''}</dd>` : ''}<dt>Class</dt><dd>${sc.days}, ${sc.time}</dd><dt>Term</dt><dd>${cl.term}</dd>${nx ? h`<dt>Next class</dt><dd>${whenText(nx)}</dd>` : ''}${t.publish ? h`<dt>Teacher</dt><dd>${t.name}</dd>` : ''}<dt>Fee</dt><dd>${money(classFee(cl))} per lesson</dd><dt>Billing</dt><dd>${e.billingPeriod === 'term' ? 'Termly' : e.billingPeriod === 'custom' ? `Custom — ${e.customLessons || customLessons(cl, e)} lessons${e.customUntil ? ' (through ' + fmtDate(e.customUntil, 'dmy') + ')' : ''}` : 'Monthly'}</dd>${e.bundleDiscountPct ? h`<dt>Multi-course discount</dt><dd>${e.bundleDiscountPct}%</dd>` : ''}${e.completedOn ? h`<dt>Completed</dt><dd>${fmtDate(e.completedOn, 'my')}</dd>` : ''}</dl>
       <div class="row" style="margin-top:18px">${e.status === 'Active' ? btn('Learning Hub', '/my-mea/learning/' + e.id, 'btn-primary', 'folder') : ''}${e.status === 'Active' && t.publish ? btn('Message Teacher', '/my-mea/messages/new' + qs({ enrolment: e.id }), 'btn-outline', 'mail') : ''}${['Pending Confirmation', 'Waitlisted'].includes(e.status) ? h`<button class="btn btn-danger" data-act="cancelEnrol" data-id="${e.id}">Cancel this request</button>` : ''}</div></div>
     <div class="panel"><h2><span class="l">${ic('book-open')}What ${k.first} will learn</span></h2><ul class="ticks">${co.topics.map(x => h`<li>${ic('check')}<span>${x}</span></li>`)}</ul><p style="margin-top:14px"><a href="#/courses/${co.slug}">View public course page</a></p></div></div>`
   };

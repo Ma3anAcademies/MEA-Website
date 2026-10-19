@@ -134,7 +134,14 @@ function render(opts = {}) {
   // (e.g. ?class=, ?tab=) without the path itself changing.
   if (out.after) { const key = location.hash; if (key !== lastAfterKey) { lastAfterKey = key; out.after(); } }
 }
-function onScroll() { const hd = $('#hdr'); if (hd) hd.classList.toggle('scrolled', window.scrollY > 40); }
+// Uses two different thresholds (not one) on purpose: collapsing the header
+// hides the topbar-wrap, which shortens the page and can itself pull scrollY
+// back under a single shared threshold — flipping the class straight back off,
+// re-showing the bar, and re-triggering the same toggle every scroll tick
+// (visible as a flicker right around that scroll position). A gap between the
+// "collapse" and "expand" points means a tiny scroll change can't cross both
+// at once, so the state can't oscillate against itself.
+function onScroll() { const hd = $('#hdr'); if (!hd) return; const y = window.scrollY; if (y > 60) hd.classList.add('scrolled'); else if (y < 20) hd.classList.remove('scrolled'); }
 
 /* ---------- global events ---------- */
 function closePops(except) {

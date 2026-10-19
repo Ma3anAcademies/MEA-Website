@@ -13,10 +13,24 @@ export async function listEnrolments() {
 }
 export async function getEnrolment(id) { return store().get(`en:${id}`, { type: "json" }).catch(() => null); }
 
+const normPeriod = (p) => (p === "term" || p === "custom" ? p : "month");
+/** Extra fields that only apply to "custom" billing, plus bundleDiscountPct —
+    set once, at the moment several courses are confirmed together in the
+    parent portal's "Review Selection" screen (the multi-course discount). */
+function extraFields({ billingPeriod, customLessons, customUntil, bundleDiscountPct }) {
+  const out = {};
+  if (billingPeriod === "custom") {
+    if (customUntil) out.customUntil = customUntil;
+    else out.customLessons = Math.max(1, Math.min(60, Math.round(Number(customLessons)) || 1));
+  }
+  if (bundleDiscountPct) out.bundleDiscountPct = Math.max(0, Math.min(100, Number(bundleDiscountPct) || 0));
+  return out;
+}
+
 /** Decides Pending Confirmation vs Waitlisted from the real, current seat count — never trusts the client for this.
-    billingPeriod ("month" or "term") is the family's choice of how they'll be charged — fees are per
+    billingPeriod ("month", "term" or "custom") is the family's choice of how they'll be charged — fees are per
     lesson, and this decides how many lessons each invoice covers. Defaults to "month". */
-export async function requestEnrolment(childId, classId, billingPeriod) {
+export async function requestEnrolment(childId, classId, billingPeriod, opts = {}) {
   const cls = await getClass(classId);
   if (!cls) return { error: "That class could not be found." };
   if (!cls.enrolOpen || cls.status !== "Running") return { error: "Enrolment is closed for this class." };
@@ -26,7 +40,7 @@ export async function requestEnrolment(childId, classId, billingPeriod) {
   const filled = all.filter((e) => e.classId === classId && OCCUPY.has(e.status)).length;
   const status = filled < cls.capacity ? "Pending Confirmation" : "Waitlisted";
   const id = crypto.randomUUID();
-  const rec = { id, childId, classId, status, billingPeriod: billingPeriod === "term" ? "term" : "month", created: Date.now() };
+  const rec = { id, childId, classId, status, billingPeriod: normPeriod(billingPeriod), ...extraFields({ billingPeriod, ...opts }), created: Date.now() };
   await store().setJSON(`en:${id}`, rec);
   return { enrolment: rec };
 }
@@ -35,7 +49,7 @@ export async function requestEnrolment(childId, classId, billingPeriod) {
     parent-request/pending-confirmation workflow — used from Admin → Teachers
     to add a student straight into one of a teacher's classes. Still respects
     capacity so a class can never be oversubscribed by this path either. */
-export async function adminEnrol(childId, classId, billingPeriod) {
+export async function adminEnrol(childId, classId, billingPeriod, opts = {}) {
   const cls = await getClass(classId);
   if (!cls) return { error: "That class could not be found." };
   const all = await listEnrolments();
@@ -44,7 +58,7 @@ export async function adminEnrol(childId, classId, billingPeriod) {
   const filled = all.filter((e) => e.classId === classId && OCCUPY.has(e.status)).length;
   if (filled >= cls.capacity) return { error: "This class is full. Increase its capacity first, or choose another class." };
   const id = crypto.randomUUID();
-  const rec = { id, childId, classId, status: "Active", billingPeriod: billingPeriod === "term" ? "term" : "month", created: Date.now() };
+  const rec = { id, childId, classId, status: "Active", billingPeriod: normPeriod(billingPeriod), ...extraFields({ billingPeriod, ...opts }), created: Date.now() };
   await store().setJSON(`en:${id}`, rec);
   return { enrolment: rec };
 }
@@ -64,12 +78,20 @@ export async function setEnrolmentStatus(id, status) {
   await store().setJSON(`en:${id}`, updated);
   return { enrolment: updated };
 }
-export async function setBillingPeriod(id, billingPeriod) {
+export async function setBillingPeriod(id, billingPeriod, opts = {}) {
   const existing = await getEnrolment(id);
   if (!existing) return { error: "That enrolment wasn't found." };
-  const updated = { ...existing, billingPeriod: billingPeriod === "term" ? "term" : "month" };
+  const { customLessons, customUntil, bundleDiscountPct, ...rest } = existing;
+  const updated = { ...rest, billingPeriod: normPeriod(billingPeriod), ...extraFields({ billingPeriod, bundleDiscountPct, ...opts }) };
   await store().setJSON(`en:${id}`, updated);
   return { enrolment: updated };
+}
+/** Marks a one-off "custom" booking as already invoiced, so the next monthly
+    billing run doesn't charge the same fixed block of lessons again. */
+export async function markCustomBilled(id) {
+  const existing = await getEnrolment(id);
+  if (!existing) return;
+  await store().setJSON(`en:${id}`, { ...existing, customBilled: true });
 }
 export async function moveEnrolment(id, classId) {
   const existing = await getEnrolment(id);

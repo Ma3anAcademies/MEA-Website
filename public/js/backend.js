@@ -99,7 +99,7 @@ async function syncCatalog(user) {
 async function mirrorEnrolments(user) {
   const r = await api('enrolments');
   if (!r.ok) return;
-  S.enrolments = mergeLive(S.enrolments, r.data.enrolments, e => ({ id: e.id, childId: e.childId, classId: e.classId, status: e.status, created: new Date(e.created).toISOString().slice(0, 10), live: true }));
+  S.enrolments = mergeLive(S.enrolments, r.data.enrolments, e => ({ id: e.id, childId: e.childId, classId: e.classId, status: e.status, billingPeriod: e.billingPeriod, customLessons: e.customLessons, customUntil: e.customUntil, bundleDiscountPct: e.bundleDiscountPct, created: new Date(e.created).toISOString().slice(0, 10), live: true }));
   save();
 }
 

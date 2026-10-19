@@ -27,9 +27,16 @@ function countSessions(cls, fromISO, toISO) {
 /** Lessons in the chosen billing period, counted from today (or the class's
     own start date if that's later), for a class with the given term end.
     "Month" is the rest of the current calendar month, not a fixed 4-week
-    window, so it reflects how many lessons are genuinely still to come. */
-export function lessonsForPeriod(cls, period, termEnd) {
+    window, so it reflects how many lessons are genuinely still to come.
+    "Custom" is a fixed one-off block picked at enrolment time: either an exact
+    lesson count, or counted from today through a chosen end date. */
+export function lessonsForPeriod(cls, period, termEnd, custom) {
   const today = todayISO();
+  if (period === "custom") {
+    if (custom && custom.customUntil) return countSessions(cls, today, custom.customUntil);
+    const n = Math.round(Number(custom && custom.customLessons)) || 1;
+    return Math.max(1, Math.min(60, n));
+  }
   if (period === "term") return countSessions(cls, today, termEnd || cls.endDate);
   return countSessions(cls, today, endOfMonthISO(today));
 }
@@ -39,9 +46,10 @@ export function classFeePerLesson(cls, course) {
   return cls.feeOverride != null && cls.feeOverride !== "" ? Number(cls.feeOverride) : Number(course.fee || 0);
 }
 
-/** Full total for a class + billing period: { feePerLesson, lessons, total }. */
-export function periodTotal(cls, course, period, termEnd) {
+/** Full total for a class + billing period: { feePerLesson, lessons, total }.
+    `custom` carries { customLessons, customUntil } for period === "custom". */
+export function periodTotal(cls, course, period, termEnd, custom) {
   const feePerLesson = classFeePerLesson(cls, course);
-  const lessons = lessonsForPeriod(cls, period, termEnd);
+  const lessons = lessonsForPeriod(cls, period, termEnd, custom);
   return { feePerLesson, lessons, total: Math.round(feePerLesson * lessons * 100) / 100 };
 }

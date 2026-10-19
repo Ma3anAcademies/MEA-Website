@@ -37,6 +37,28 @@ function periodTotal(cl, period) {
   const feePerLesson = classFee(cl), lessons = periodLessons(cl, period);
   return { feePerLesson, lessons, total: Math.round(feePerLesson * lessons * 100) / 100 };
 }
+/* "Custom" billing: either an exact number of lessons (counted forward from
+   today across this class's real weekly schedule, so it always lands on a
+   real session date) or an end date picked on a calendar (counted back the
+   other way — how many real sessions fall between today and that date). */
+function customEndDateForLessons(cl, n) {
+  const from = todayISO() > cl.startDate ? todayISO() : cl.startDate;
+  let count = 0;
+  for (let d = from; d <= cl.endDate; d = isoAdd(d, 1)) { if (cl.days.some(x => x.d === dowOf(d))) { count++; if (count >= n) return d; } }
+  return cl.endDate;
+}
+function customLessons(cl, custom) {
+  if (custom.until) return classSessions(cl, todayISO(), custom.until).length;
+  return Math.max(1, Math.round(+custom.lessons) || 1);
+}
+function customPeriodTotal(cl, custom) {
+  const feePerLesson = classFee(cl), lessons = customLessons(cl, custom);
+  return { feePerLesson, lessons, total: Math.round(feePerLesson * lessons * 100) / 100 };
+}
+/* Multi-course discount: set by admin (Setup & Integrations → Site Details) as a
+   lesson-count threshold + a %. totalLessons is the sum of lessons across every
+   course a parent is selecting together (see the enrolment "basket" screen). */
+function multiCourseDiscountPct(totalLessons) { return SITE.multiCourseLessons > 0 && totalLessons >= SITE.multiCourseLessons ? SITE.multiCourseDiscount : 0; }
 const weekOf = iso => Math.floor(daysBetween(S.term.start, iso) / 7) + 1;
 function levelOfStage(sys, stage) { const l = SYS[sys].levels.find(x => x.years.includes(stage)); return l ? l.id : null; }
 const stageMismatch = (child, course) => child.sys !== course.sys || levelOfStage(child.sys, child.stage) !== course.level;

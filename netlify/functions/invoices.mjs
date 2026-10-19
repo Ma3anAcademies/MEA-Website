@@ -1,7 +1,7 @@
 import { readToken } from "./_lib/auth.mjs";
 import { listForParent, listAll, createInvoice, markPaid } from "./_lib/invoices.mjs";
 import { listChildren, listAllChildren } from "./_lib/children.mjs";
-import { listEnrolments } from "./_lib/enrolments.mjs";
+import { listEnrolments, markCustomBilled } from "./_lib/enrolments.mjs";
 import { listCourses } from "./_lib/courses.mjs";
 import { listClasses } from "./_lib/classes.mjs";
 import { periodTotal } from "./_lib/pricing.mjs";
@@ -30,14 +30,23 @@ export default async (req) => {
       const [allEnrolments, allChildren, allClasses, allCourses] = await Promise.all([listEnrolments(), listAllChildren(), listClasses(), listCourses()]);
       const active = allEnrolments.filter((e) => e.status === "Active");
       const byParent = new Map();
+      const customBilledIds = [];
       for (const e of active) {
+        // A "custom" booking is a fixed one-off block of lessons agreed at enrolment
+        // time (not a recurring monthly/termly charge) — bill it once, the first time
+        // invoices are generated after it starts, then never again.
+        if (e.billingPeriod === "custom" && e.customBilled) continue;
         const child = allChildren.find((c) => c.id === e.childId); if (!child) continue;
         const cls = allClasses.find((c) => c.id === e.classId); if (!cls) continue;
         const course = allCourses.find((c) => c.id === cls.courseId); if (!course) continue;
-        const period = e.billingPeriod === "term" ? "term" : "month";
-        const { feePerLesson, lessons, total } = periodTotal(cls, course, period);
-        const desc = `${course.title} (${lessons} lesson${lessons === 1 ? "" : "s"} × £${feePerLesson.toFixed(2)}, ${period === "term" ? "this term" : "this month"})`;
+        const period = e.billingPeriod === "term" ? "term" : e.billingPeriod === "custom" ? "custom" : "month";
+        const { feePerLesson, lessons, total: rawTotal } = periodTotal(cls, course, period, null, e);
+        const bundlePct = Math.max(0, Math.min(100, Number(e.bundleDiscountPct) || 0));
+        const total = bundlePct ? Math.round(rawTotal * (1 - bundlePct / 100) * 100) / 100 : rawTotal;
+        const periodLabel = period === "term" ? "this term" : period === "custom" ? "one-off block" : "this month";
+        const desc = `${course.title} (${lessons} lesson${lessons === 1 ? "" : "s"} × £${feePerLesson.toFixed(2)}, ${periodLabel}${bundlePct ? `, ${bundlePct}% multi-course discount applied` : ""})`;
         const list = byParent.get(child.parentId) || []; list.push({ child: child.first, desc, amount: total }); byParent.set(child.parentId, list);
+        if (period === "custom") customBilledIds.push(e.id);
       }
       const period = body.period || new Date().toLocaleString("en-GB", { month: "long", year: "numeric" });
       const created = [];
@@ -46,6 +55,7 @@ export default async (req) => {
         const { invoice } = await createInvoice({ parentId, period, dueDate: body.dueDate, lines, discountPct: kids.size >= 2 ? Number(body.siblingDiscountPct || 0) : 0 });
         if (invoice) created.push(invoice);
       }
+      await Promise.all(customBilledIds.map((id) => markCustomBilled(id)));
       return json({ created: created.length });
     }
 

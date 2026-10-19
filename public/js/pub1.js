@@ -21,18 +21,23 @@ function enrolLink(cl, u) {
   if (u.role === 'parent') { const kq = UI.kid && childById(UI.kid) && childById(UI.kid).parentId === u.id ? qs({ child: UI.kid }) : ''; return { href: (full ? '/my-mea/courses/waitlist/' : '/my-mea/courses/enrol/') + cl.id + kq, label }; }
   return null;
 }
-function classCard(cl, u, year, levelLabel) {
+function classCard(cl, u, year, levelLabel, opts) {
   const co = clsCourse(cl), a = avail(cl), sc = schedText(cl), el = enrolLink(cl, u);
   // When shown as a per-year row (course finder), the year is the headline and
   // the key-stage/level is a small secondary icon chip — not the other way round.
   const mainTitle = year || co.title;
   const subLine = year ? subj(co.subject).name : subj(co.subject).name;
   const levelChip = year ? chip(levelLabel || levelName(co.level), 'chip-grey', LV_ICON[co.level] || 'layers') : chip(levelName(co.level), 'chip-blue', LV_ICON[co.level] || 'layers');
+  // opts.select: when set, this card is in a multi-course "selection" context
+  // (the portal Find a Course page) — adds a toggle button that adds/removes
+  // the class from UI.basket, alongside (not instead of) the normal Enrol link.
+  const inBasket = opts && opts.select && UI.basket && UI.basket.some(b => b.classId === cl.id);
+  const selectBtn = opts && opts.select && a.k !== 'closed' ? h`<button type="button" class="btn ${inBasket ? 'btn-primary' : 'btn-outline'} btn-sm" data-act="basketToggle" data-id="${cl.id}" aria-pressed="${!!inBasket}">${ic(inBasket ? 'check-circle' : 'plus')}${inBasket ? 'Selected' : 'Select'}</button>` : '';
   return h`<article class="ccard acc-${grpOf(co.subject)}"><div class="chips">${levelChip}${co.board ? chip(co.board, 'chip-grey') : ''}${chip(a.label, a.cls, a.icon)}</div>
   <h3><a href="#/courses/${co.slug}">${mainTitle}</a></h3><div class="small muted">${subLine}</div>
   <div class="meta"><div>${ic('calendar')}<span>${sc.days}</span></div><div>${ic('clock')}<span>${sc.time} (UK time)</span></div><div>${ic('laptop')}<span>Live online classes</span></div><div>${ic('layers')}<span>${startsLater(cl) ? 'Starts ' + fmtDate(cl.startDate) : cl.term}</span></div></div>
   <div class="foot"><div class="fee">${money(classFee(cl))} <small>/ lesson</small></div>${co.trial ? chip('Trial class available', 'chip-purple', 'sparkles') : ''}</div>
-  <div class="btns"><a class="btn btn-outline btn-sm" href="#/courses/${co.slug}">View Course</a>${el ? h`<a class="btn ${a.k === 'full' ? 'btn-outline-pink' : 'btn-pink'} btn-sm" href="#${el.href}">${el.label}</a>` : ''}</div></article>`;
+  <div class="btns"><a class="btn btn-outline btn-sm" href="#/courses/${co.slug}">View Course</a>${selectBtn}${el ? h`<a class="btn ${a.k === 'full' ? 'btn-outline-pink' : 'btn-pink'} btn-sm" href="#${el.href}">${el.label}</a>` : ''}</div></article>`;
 }
 
 /* ---------------- HOME ---------------- */

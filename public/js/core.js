@@ -15,6 +15,8 @@ const SITE = {
   hours: 'Mon – Fri: 8:00am – 6:00pm',
   social: {},                      // e.g. { facebook:'https://…', instagram:'https://…', youtube:'…', linkedin:'…', tiktok:'…' }
   siblingDiscount: 10,             // % – set to 0 to hide until officially approved
+  multiCourseLessons: 0,           // total lessons across a selection needed to unlock the discount below; 0 = off
+  multiCourseDiscount: 10,         // % applied once a selection reaches multiCourseLessons
   previewBuild: true               // shows the "sample content" note in the footer
 };
 /* Every field above is a fallback default only. Once the site loads, Admin → Setup &

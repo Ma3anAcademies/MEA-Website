@@ -355,6 +355,7 @@ R('/admin/setup', (p, q, u) => {
       ${fld({ name: 'phone', label: 'Phone (displayed)', req: 1, value: SITE.phone })}${fld({ name: 'phoneHref', label: 'Phone (link, e.g. +442012345678)', req: 1, value: SITE.phoneHref })}
       ${fld({ name: 'email', label: 'Email address', type: 'email', req: 1, value: SITE.email })}${fld({ name: 'whatsapp', label: 'WhatsApp number (digits only, no +)', value: SITE.whatsapp, hint: 'Leave blank to hide WhatsApp buttons.' })}
       ${fld({ name: 'hours', label: 'Support hours', value: SITE.hours })}${fld({ name: 'siblingDiscount', label: 'Sibling discount %', type: 'number', value: SITE.siblingDiscount, attrs: 'min="0" max="100"' })}
+      ${fld({ name: 'multiCourseLessons', label: 'Lessons needed for multi-course discount', type: 'number', value: SITE.multiCourseLessons, attrs: 'min="0"', hint: 'Total lessons a parent must select across their chosen courses before the discount below applies. 0 turns this off.' })}${fld({ name: 'multiCourseDiscount', label: 'Multi-course discount %', type: 'number', value: SITE.multiCourseDiscount, attrs: 'min="0" max="100"' })}
       ${fld({ name: 'facebook', label: 'Facebook URL', value: SITE.social.facebook || '' })}${fld({ name: 'instagram', label: 'Instagram URL', value: SITE.social.instagram || '' })}
       ${fld({ name: 'youtube', label: 'YouTube URL', value: SITE.social.youtube || '' })}${fld({ name: 'linkedin', label: 'LinkedIn URL', value: SITE.social.linkedin || '' })}
       ${fld({ name: 'tiktok', label: 'TikTok URL', value: SITE.social.tiktok || '' })}
@@ -367,7 +368,7 @@ function btn2(label, act, icon) { return h`<button class="btn btn-outline" data-
 Forms.siteDetails = (f, v) => {
   const e = {}; if (!v.name) e.name = 'Enter an organisation name.'; if (!isEmail(v.email)) e.email = 'Enter a valid email address.'; if (!showErrors(f, e)) return;
   S.settings = { ...S.settings, name: v.name, tagline: v.tagline, phone: v.phone, phoneHref: v.phoneHref, email: v.email, whatsapp: v.whatsapp, hours: v.hours,
-    siblingDiscount: +v.siblingDiscount || 0, previewBuild: !!v.previewBuild,
+    siblingDiscount: +v.siblingDiscount || 0, multiCourseLessons: +v.multiCourseLessons || 0, multiCourseDiscount: +v.multiCourseDiscount || 0, previewBuild: !!v.previewBuild,
     social: Object.fromEntries(['facebook', 'instagram', 'youtube', 'linkedin', 'tiktok'].map(k => [k, v[k]]).filter(([, val]) => val)) };
   applySiteSettings(); save(); toast('Site details saved.'); render({ keepScroll: true });
 };

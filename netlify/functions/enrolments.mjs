@@ -26,16 +26,17 @@ export default async (req) => {
 
   if (req.method === "POST") {
     let body; try { body = await req.json(); } catch { return err(400, "Invalid request."); }
+    const opts = { customLessons: body.customLessons, customUntil: body.customUntil, bundleDiscountPct: body.bundleDiscountPct };
     if (payload.role === "admin") {
       if (!body.childId || !body.classId) return err(400, "Missing child or class.");
-      const { enrolment, error } = await adminEnrol(body.childId, body.classId, body.billingPeriod);
+      const { enrolment, error } = await adminEnrol(body.childId, body.classId, body.billingPeriod, opts);
       if (error) return err(400, error);
       return json({ enrolment });
     }
     if (payload.role !== "parent") return err(403, "Only a parent account can request enrolment.");
     const mine = new Set((await listChildren(payload.id)).map((c) => c.id));
     if (!body.childId || !mine.has(body.childId)) return err(403, "That child does not belong to your account.");
-    const { enrolment, error } = await requestEnrolment(body.childId, body.classId, body.billingPeriod);
+    const { enrolment, error } = await requestEnrolment(body.childId, body.classId, body.billingPeriod, opts);
     if (error) return err(400, error);
     return json({ enrolment });
   }
