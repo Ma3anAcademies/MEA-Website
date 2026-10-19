@@ -37,8 +37,11 @@ async function stripeCall(path, params) {
 export async function createCheckoutSession({ invoiceId, amountPence, description, successUrl, cancelUrl, customerEmail }) {
   if (!stripeConfigured()) return { error: "Payments are not connected on this site yet." };
   const { data, error } = await stripeCall("checkout/sessions", {
+    // Deliberately no payment_method_types here: Stripe deprecated passing it
+    // explicitly on Checkout Sessions - which payment methods show (card, and
+    // anything else enabled) is now controlled from the Stripe Dashboard
+    // (Settings -> Payment methods), not from this API call.
     mode: "payment",
-    "payment_method_types[0]": "card",
     "line_items[0][price_data][currency]": "gbp",
     "line_items[0][price_data][product_data][name]": description,
     "line_items[0][price_data][unit_amount]": amountPence,
