@@ -340,3 +340,9 @@ README.md                    this file
   once the content above is replaced.
 - Decide on payments (see "What's real" above) before relying on this for
   real fee collection.
+
+## Help chatbot
+A floating "Help" chat on the public site and parent portal (hidden for admin/teacher).
+- Works out of the box with built-in answers (no cost, no setup).
+- To make it answer with Claude, add `ANTHROPIC_API_KEY` in Netlify > Site configuration > Environment variables and redeploy. Optional `CHAT_MODEL` (default `claude-haiku-5-5`).
+- Signed-out visitors are never told prices. Knowledge lives in `netlify/functions/_lib/chat-knowledge.mjs` (and the FAQs in `chat-faq.json`); built-in answers are in `public/js/chat.js`.
