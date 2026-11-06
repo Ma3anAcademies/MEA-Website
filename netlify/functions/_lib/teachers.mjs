@@ -42,6 +42,20 @@ export async function verifyTeacherLogin(email, password) {
   return t;
 }
 
+/** Admin-only: force-sets a teacher's password. Bumps epoch, which immediately
+    signs them out of any device they're currently signed in on (session.mjs
+    checks it on every request) — same effect a parent's self-service reset has. */
+export async function adminSetTeacherPassword(id, newPassword) {
+  const t = await getTeacher(id);
+  if (!t) return { error: "That teacher wasn't found." };
+  const problem = passwordProblem(newPassword);
+  if (problem) return { error: problem };
+  const salt = crypto.randomBytes(16);
+  const updated = { ...t, salt: salt.toString("hex"), hash: (await scrypt(String(newPassword), salt, 64)).toString("hex"), epoch: (t.epoch || 1) + 1 };
+  await store().setJSON(`t:${id}`, updated);
+  return { teacher: updated };
+}
+
 export async function updateTeacher(id, patch) {
   const existing = await getTeacher(id);
   if (!existing) return { error: "That teacher wasn't found." };

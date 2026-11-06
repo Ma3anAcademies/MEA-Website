@@ -41,15 +41,20 @@ export function lessonsForPeriod(cls, period, termEnd, custom) {
   return countSessions(cls, today, endOfMonthISO(today));
 }
 
-/** The per-lesson fee for a class: its own override, or the course's fee. */
-export function classFeePerLesson(cls, course) {
-  return cls.feeOverride != null && cls.feeOverride !== "" ? Number(cls.feeOverride) : Number(course.fee || 0);
+/** The per-lesson fee for a group class: the class's own override if admin set one,
+    otherwise the admin-set group price for the course's level, otherwise the
+    course's legacy fee. `prices` is the settings doc from getPricing(). */
+export function classFeePerLesson(cls, course, prices) {
+  if (cls.feeOverride != null && cls.feeOverride !== "") return Number(cls.feeOverride);
+  const lp = prices && prices.levelPrices && prices.levelPrices[course.level];
+  if (lp && lp.group != null) return Number(lp.group);
+  return Number(course.fee || 0);
 }
 
 /** Full total for a class + billing period: { feePerLesson, lessons, total }.
     `custom` carries { customLessons, customUntil } for period === "custom". */
-export function periodTotal(cls, course, period, termEnd, custom) {
-  const feePerLesson = classFeePerLesson(cls, course);
+export function periodTotal(cls, course, period, termEnd, custom, prices) {
+  const feePerLesson = classFeePerLesson(cls, course, prices);
   const lessons = lessonsForPeriod(cls, period, termEnd, custom);
   return { feePerLesson, lessons, total: Math.round(feePerLesson * lessons * 100) / 100 };
 }

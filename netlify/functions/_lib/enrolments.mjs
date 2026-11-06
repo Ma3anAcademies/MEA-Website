@@ -3,7 +3,7 @@ import { getNamedStore } from "./store.mjs";
 import { getClass } from "./classes.mjs";
 
 const store = () => getNamedStore("enrolments");
-const OCCUPY = new Set(["Active", "Pending Confirmation"]);
+const OCCUPY = new Set(["Active", "Pending Confirmation", "Awaiting Payment"]);
 
 export async function listEnrolments() {
   const { blobs } = await store().list({ prefix: "en:" });

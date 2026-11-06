@@ -23,9 +23,24 @@ R('/admin/enrolments', (p, q, u) => {
   const st = q.status || '', term = (UI.aeq || '').toLowerCase();
   const list = S.enrolments.filter(e => (!st || e.status === st) && childById(e.childId)).map(e => ({ e, k: childById(e.childId), cl: classById(e.classId) })).filter(x => !term || (x.k.first + ' ' + x.k.last + ' ' + clsCourse(x.cl).title + ' ' + pname(x.k.parentId)).toLowerCase().includes(term)).sort((a, b) => b.e.created.localeCompare(a.e.created)).slice(0, 60);
   return adminPage('Enrolments', 'check-square', 'Approve, decline, withdraw, move class and manage the waitlist', h`
-  <div class="toolbar"><div class="pills" role="group" aria-label="Filter by status">${['', 'Pending Confirmation', 'Waitlisted', 'Active', 'Completed', 'Withdrawn', 'Declined'].map(s => h`<button class="pill" data-act="aeStatus" data-s="${s}" aria-pressed="${st === s}">${s || 'All'}</button>`)}</div><div class="grow"></div>${LIVE_BACKEND ? h`<button class="btn btn-outline btn-sm" data-act="aeRefresh">${ic('refresh')}Refresh</button>` : ''}${searchBox('aeq', UI.aeq, 'aeSearch', 'Search child, parent or course')}</div>
-  ${tableHTML(['Child', 'Parent', 'Course', 'Class time', 'Requested', 'Status', ''], list.map(({ e, k, cl }) => h`<tr>${td('Child', h`<strong>${k.first} ${k.last}</strong><br><span class="small muted">${k.stage}</span>`)}${td('Parent', pname(k.parentId))}${td('Course', clsCourse(cl).title)}${td('Class time', schedText(cl).short)}${td('Requested', fmtDate(e.created, 'dm'))}${td('Status', statusChip(e.status))}${td('', h`<div class="row" style="gap:6px;justify-content:flex-end">${e.status === 'Pending Confirmation' ? h`<button class="btn btn-primary btn-sm" data-act="aeSet" data-id="${e.id}" data-s="Active">Approve</button><button class="btn btn-danger btn-sm" data-act="aeSet" data-id="${e.id}" data-s="Declined">Decline</button>` : ''}${e.status === 'Waitlisted' ? h`<button class="btn btn-primary btn-sm" data-act="aeSet" data-id="${e.id}" data-s="Active">Offer place</button>` : ''}${['Active', 'Pending Confirmation', 'Waitlisted'].includes(e.status) ? h`<button class="btn btn-outline btn-sm" data-act="aeMove" data-id="${e.id}">Move</button>` : ''}${e.status === 'Active' ? h`<button class="btn btn-outline btn-sm" data-act="aeSet" data-id="${e.id}" data-s="Withdrawn">Withdraw</button>` : ''}</div>`, 'act')}</tr>`), { empty: 'No enrolments match.' })}<p class="form-note">Showing the latest ${list.length}. Filter or search to narrow down.${LIVE_BACKEND ? ' New requests from families elsewhere won\u2019t appear automatically \u2014 use Refresh to check for them.' : ''}</p>`);
+  <div class="toolbar"><div class="pills" role="group" aria-label="Filter by status">${['', 'Pending Confirmation', 'Waitlisted', 'Awaiting Payment', 'Active', 'Completed', 'Withdrawn', 'Declined'].map(s => h`<button class="pill" data-act="aeStatus" data-s="${s}" aria-pressed="${st === s}">${s || 'All'}</button>`)}</div><div class="grow"></div>${LIVE_BACKEND ? h`<button class="btn btn-outline btn-sm" data-act="aeRefresh">${ic('refresh')}Refresh</button>` : ''}${searchBox('aeq', UI.aeq, 'aeSearch', 'Search child, parent or course')}</div>
+  ${o2oAdminPanel()}
+  ${tableHTML(['Child', 'Parent', 'Course', 'Class time', 'Requested', 'Status', ''], list.map(({ e, k, cl }) => h`<tr>${td('Child', h`<strong>${k.first} ${k.last}</strong><br><span class="small muted">${k.stage}</span>`)}${td('Parent', pname(k.parentId))}${td('Course', clsCourse(cl).title)}${td('Class time', schedText(cl).short)}${td('Requested', fmtDate(e.created, 'dm'))}${td('Status', statusChip(e.status))}${td('', h`<div class="row" style="gap:6px;justify-content:flex-end">${e.status === 'Pending Confirmation' ? h`<button class="btn btn-primary btn-sm" data-act="aeSet" data-id="${e.id}" data-s="Active">Approve</button><button class="btn btn-danger btn-sm" data-act="aeSet" data-id="${e.id}" data-s="Declined">Decline</button>` : ''}${e.status === 'Waitlisted' ? h`<button class="btn btn-primary btn-sm" data-act="aeSet" data-id="${e.id}" data-s="Active">Offer place</button>` : ''}${['Active', 'Pending Confirmation', 'Awaiting Payment', 'Waitlisted'].includes(e.status) ? h`<button class="btn btn-outline btn-sm" data-act="aeMove" data-id="${e.id}">Move</button>` : ''}${['Active', 'Awaiting Payment'].includes(e.status) ? h`<button class="btn btn-outline btn-sm" data-act="aeSet" data-id="${e.id}" data-s="Withdrawn">Withdraw</button>` : ''}</div>`, 'act')}</tr>`), { empty: 'No enrolments match.' })}<p class="form-note">Showing the latest ${list.length}. Filter or search to narrow down.${LIVE_BACKEND ? ' New requests from families elsewhere won\u2019t appear automatically \u2014 use Refresh to check for them.' : ''}</p>`);
 }, AR);
+function o2oAdminPanel() {
+  const rs = (S.o2o || []).filter(x => childById(x.childId)).sort((a, b) => (a.status === 'Requested' ? 0 : 1) - (b.status === 'Requested' ? 0 : 1) || (b.created || '').localeCompare(a.created || '')).slice(0, 30);
+  if (!rs.length) return '';
+  return h`<section class="panel" style="margin-bottom:18px"><h2><span class="l">${ic('user')}One-to-one requests</span></h2><div class="list">${rs.map(x => { const k = childById(x.childId), par = userById(x.parentId); return h`<div class="li"><div class="grow"><div class="t">${k.first} ${k.last} · ${subj(x.subject).name} (${levelName(x.level)}${x.board ? ', ' + x.board : ''})</div><div class="s">${pname(k.parentId)}${par && par.phone ? ' · ' + par.phone : ''} · ${money(x.pricePerLesson)}/lesson</div><div class="s">Free: ${o2oSummary(x.slots)}</div>${x.note ? h`<div class="s">Note: ${x.note}</div>` : ''}</div>${chip(x.status, x.status === 'Arranged' ? 'chip-green' : x.status === 'Requested' ? 'chip-yellow' : 'chip-grey')}${x.status === 'Requested' ? h`<button class="btn btn-primary btn-sm" data-act="o2oSet" data-id="${x.id}" data-s="Arranged">Mark arranged</button><button class="btn btn-danger btn-sm" data-act="o2oSet" data-id="${x.id}" data-s="Declined">Decline</button>` : ''}</div>`; })}</div></section>`;
+}
+Actions.o2oSet = t => {
+  const arr = t.dataset.s === 'Arranged';
+  openModal({ title: arr ? 'Mark as arranged' : 'Decline request', body: h`<form data-form="o2oSetGo" data-id="${t.dataset.id}" data-s="${t.dataset.s}" novalidate>${fld({ name: 'note', label: arr ? 'Note for the parent (optional)' : 'Reason (optional)', type: 'textarea', rows: 3, value: '', hint: arr ? 'e.g. the agreed day and time.' : '', full: 1 })}<div class="row" style="margin-top:14px;justify-content:flex-end"><button type="button" class="btn btn-outline" data-act="closeModal">Cancel</button><button class="btn btn-primary" type="submit">Save</button></div></form>` });
+};
+Forms.o2oSetGo = async (f, v) => {
+  const x = (S.o2o || []).find(r => r.id === f.dataset.id); if (!x) return; const note = (v.note || '').trim();
+  if (LIVE_BACKEND && x.live) { const r = await api('onetoone', { method: 'PATCH', body: { id: x.id, status: f.dataset.s, note } }); if (!r.ok) { toast((r.data && r.data.error) || 'Could not update — please try again.'); return; } }
+  x.status = f.dataset.s; x.note = note; save(); closeModal(); toast('Request updated.'); render({ keepScroll: true });
+};
 Actions.aeRefresh = async () => { toast('Checking for new requests…'); await mirrorDirectory(me()); await mirrorEnrolments(me()); render({ keepScroll: true }); toast('Up to date.'); };
 Actions.aeStatus = t => setQuery({ status: t.dataset.s });
 Changes.aeSearch = el => { UI.aeq = el.value; render({ keepScroll: true }); };
@@ -33,12 +48,26 @@ Actions.aeSet = async t => {
   const e = S.enrolments.find(x => x.id === t.dataset.id), cl = classById(e.classId), co = clsCourse(cl), k = childById(e.childId), s = t.dataset.s;
   if (s === 'Active' && seatsLeft(cl) === 0 && e.status !== 'Pending Confirmation') { toast('This class is full. Increase the capacity first.'); return; }
   if (s === 'Active' && e.status === 'Pending Confirmation' && filledCount(cl) > cl.capacity) { toast('This class is over capacity.'); return; }
+  let newStatus = s, invoice = null;
   if (LIVE_BACKEND && e.live) {
     const r = await api('enrolments', { method: 'PATCH', body: { id: e.id, status: s } });
     if (!r.ok) { toast((r.data && r.data.error) || 'Could not update — please try again.'); return; }
+    // Approving/offering a place ("Active") doesn't put the child straight on the roster
+    // any more — the backend bills the first payment and hands back "Awaiting Payment"
+    // instead, so reflect whatever status actually came back, not what was requested.
+    newStatus = r.data.enrolment.status; invoice = r.data.invoice || null;
   }
-  e.status = s; const txt = s === 'Active' ? `Enrolment confirmed: ${k.first} is now enrolled in ${co.title}.` : s === 'Declined' ? `Your enrolment request for ${co.title} (${k.first}) could not be accepted. Please contact support.` : `${k.first} has been withdrawn from ${co.title}.`;
-  if (!k.synthetic) addNotif(k.parentId, 'Enrolments', k.id, txt, '/my-mea/courses'); save(); toast('Enrolment updated: ' + s); render({ keepScroll: true });
+  e.status = newStatus;
+  const txt = newStatus === 'Awaiting Payment'
+    ? `${k.first}'s place in ${co.title} is reserved — pay the first invoice${invoice ? ` (due ${fmtDate(invoice.dueDate, 'dmy')})` : ''} to confirm it.`
+    : newStatus === 'Active' ? `Enrolment confirmed: ${k.first} is now enrolled in ${co.title}.`
+    : s === 'Declined' ? `Your enrolment request for ${co.title} (${k.first}) could not be accepted. Please contact support.`
+    : `${k.first} has been withdrawn from ${co.title}.`;
+  if (!k.synthetic) addNotif(k.parentId, 'Enrolments', k.id, txt, newStatus === 'Awaiting Payment' ? '/my-mea/payments' : '/my-mea/courses');
+  save();
+  if (invoice) { await mirrorAllInvoices(me()); toast('Approved — first-payment invoice sent to the parent.'); }
+  else toast('Enrolment updated: ' + newStatus);
+  render({ keepScroll: true });
 };
 Actions.aeMove = t => {
   const e = S.enrolments.find(x => x.id === t.dataset.id), co = clsCourse(classById(e.classId)), opts = S.classes.filter(c => clsCourse(c).level === co.level && clsCourse(c).sys === co.sys && c.id !== e.classId);
@@ -92,24 +121,34 @@ function courseForm(c) {
   const x = c || { title: '', sys: 'eng', level: 'gcse', subject: 'maths', board: '', tier: '', fee: 150, desc: '', active: true };
   return h`<form data-form="courseForm" data-id="${c ? c.id : ''}" novalidate><div class="form-grid">${fld({ name: 'title', label: 'Course title', req: 1, value: x.title, full: 1 })}
     ${c ? '' : h`${fld({ name: 'sys', label: 'Education system', type: 'select', value: x.sys, options: Object.values(SYS).map(s => [s.id, s.short]) })}${fld({ name: 'level', label: 'Level', type: 'select', value: x.level, options: Object.values(SYS).flatMap(s => s.levels.map(l => [l.id, `${l.name} (${s.id === 'sco' ? 'Scotland' : 'England/Wales/NI'})`])) })}${fld({ name: 'subject', label: 'Subject', type: 'select', value: x.subject, options: SUBJECTS.map(s => [s.id, s.name]) })}${fld({ name: 'board', label: 'Exam board', value: x.board, hint: 'Leave blank if not applicable.' })}`}
-    ${fld({ name: 'fee', label: 'Default fee (£/lesson)', type: 'number', req: 1, value: x.fee, attrs: 'min="0"' })}${fld({ name: 'active', label: 'Visibility', type: 'select', value: x.active ? '1' : '0', options: [['1', 'Active (public)'], ['0', 'Hidden']] })}${fld({ name: 'desc', label: 'Public description', type: 'textarea', rows: 3, value: x.desc, full: 1 })}</div>
+    ${fld({ name: 'active', label: 'Visibility', type: 'select', value: x.active ? '1' : '0', options: [['1', 'Active (public)'], ['0', 'Hidden']] })}${fld({ name: 'desc', label: 'Public description', type: 'textarea', rows: 3, value: x.desc, full: 1 })}</div>
     <div class="row" style="margin-top:16px;justify-content:flex-end"><button type="button" class="btn btn-outline" data-act="closeModal">Cancel</button><button class="btn btn-primary" type="submit">Save course</button></div></form>`;
 }
-R('/admin/courses', (p, q, u) => adminPage('Courses', 'book-open', 'The course catalogue: what MEA offers', h`<div class="toolbar"><div class="grow"></div><button class="btn btn-pink" data-act="coNew">${ic('plus')}New course</button></div>
-  ${tableHTML(['Course', 'System', 'Level', 'Fee', 'Visibility', ''], S.courses.map(c => h`<tr>${td('Course', h`<strong>${c.title}</strong>`)}${td('System', SYS[c.sys].short)}${td('Level', levelName(c.level))}${td('Fee', money(c.fee) + ' / lesson')}${td('Visibility', chip(c.active ? 'Active' : 'Hidden', c.active ? 'chip-green' : 'chip-grey'))}${td('', h`<button class="btn btn-outline btn-sm" data-act="coEdit" data-id="${c.id}">Edit</button>`, 'act')}</tr>`))}
+function levelPricesPanel() {
+  return h`<section class="panel" style="margin-bottom:22px"><h2><span class="l">${ic('credit-card')}Lesson prices by level</span></h2><p class="muted">One price per level, per lesson. It applies to every course at that level. Group and one-to-one are priced separately. A class can still have its own price set in Classes.</p>
+  <form data-form="levelPrices" novalidate>${Object.values(SYS).map(s => h`<h3 style="font-size:1rem;margin-top:14px">${s.short}</h3><div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Level</th><th>Group (£/lesson)</th><th>One-to-one (£/lesson)</th></tr></thead><tbody>${s.levels.map(l => h`<tr><th scope="row">${l.name}</th><td><input class="inp" type="number" min="0" step="0.5" name="g_${l.id}" value="${levelPrice(l.id, 'group')}" aria-label="${l.name} group price" style="max-width:110px"></td><td><input class="inp" type="number" min="0" step="0.5" name="o_${l.id}" value="${levelPrice(l.id, 'one2one')}" aria-label="${l.name} one-to-one price" style="max-width:110px"></td></tr>`)}</tbody></table></div>`)}
+  <div class="row" style="margin-top:14px"><button class="btn btn-primary" type="submit">Save prices</button></div></form></section>`;
+}
+Forms.levelPrices = async (f, v) => {
+  const lp = {}; for (const s of Object.values(SYS)) for (const l of s.levels) { const g = +v['g_' + l.id], o = +v['o_' + l.id]; if (!(g >= 0) || !(o >= 0)) { toast('Prices must be 0 or more.'); return; } lp[l.id] = { group: g, one2one: o }; }
+  if (LIVE_BACKEND) { const r = await api('pricing', { method: 'POST', body: { levelPrices: lp } }); if (!r.ok) { toast((r.data && r.data.error) || 'Could not save prices — please try again.'); return; } lp && Object.assign(lp, r.data.pricing.levelPrices); }
+  S.settings = { ...S.settings, levelPrices: { ...(S.settings.levelPrices || {}), ...lp } }; applySiteSettings(); save(); toast('Prices saved.'); render({ keepScroll: true });
+};
+R('/admin/courses', (p, q, u) => adminPage('Courses', 'book-open', 'The course catalogue: what MEA offers', h`${levelPricesPanel()}<div class="toolbar"><div class="grow"></div><button class="btn btn-pink" data-act="coNew">${ic('plus')}New course</button></div>
+  ${tableHTML(['Course', 'System', 'Level', 'Fee', 'Visibility', ''], S.courses.map(c => h`<tr>${td('Course', h`<strong>${c.title}</strong>`)}${td('System', SYS[c.sys].short)}${td('Level', levelName(c.level))}${td('Fee', money(levelPrice(c.level, 'group')) + ' / lesson')}${td('Visibility', chip(c.active ? 'Active' : 'Hidden', c.active ? 'chip-green' : 'chip-grey'))}${td('', h`<button class="btn btn-outline btn-sm" data-act="coEdit" data-id="${c.id}">Edit</button>`, 'act')}</tr>`))}
   <section class="panel" style="margin-top:22px"><h2><span class="l">${ic('settings')}Levels and subjects offered</span></h2><p class="muted">Switch off anything MEA is not currently teaching. It disappears from the public site and Course Finder.</p><div class="grid g2"><div>${Object.values(SYS).map(s => h`<h3 style="font-size:1rem">${s.short}</h3>${s.levels.map(l => h`<label class="check" style="padding:6px 0"><input type="checkbox" data-on="toggleOff" data-kind="levels" data-id="${l.id}" ${isOff('levels', l.id) ? '' : raw('checked')}><span>${l.name}</span></label>`)}`)}</div><div><h3 style="font-size:1rem">Subjects</h3>${SUBJECTS.map(s => h`<label class="check" style="padding:6px 0"><input type="checkbox" data-on="toggleOff" data-kind="subjects" data-id="${s.id}" ${isOff('subjects', s.id) ? '' : raw('checked')}><span>${s.name}</span></label>`)}</div></div></section>`), AR);
 Changes.toggleOff = el => { const a = S.off[el.dataset.kind], id = el.dataset.id, i = a.indexOf(id); if (el.checked && i >= 0) a.splice(i, 1); if (!el.checked && i < 0) a.push(id); save(); toast('Saved. The public site has been updated.'); };
 Actions.coNew = () => openModal({ title: 'New course', body: courseForm(null) });
 Actions.coEdit = t => openModal({ title: 'Edit course', body: courseForm(courseById(t.dataset.id)) });
 Forms.courseForm = async (f, v) => {
-  const e = {}; if (!v.title) e.title = 'Enter a course title.'; if (v.fee === '' || +v.fee < 0) e.fee = 'Enter a fee.'; if (!showErrors(f, e)) return;
+  const e = {}; if (!v.title) e.title = 'Enter a course title.'; if (!showErrors(f, e)) return;
   if (f.dataset.id) {
-    const patch = { title: v.title, fee: +v.fee, desc: v.desc, active: v.active === '1' };
+    const patch = { title: v.title, desc: v.desc, active: v.active === '1' };
     if (LIVE_BACKEND) { const r = await api('courses', { method: 'PATCH', body: { id: f.dataset.id, ...patch } }); if (!r.ok) { toast((r.data && r.data.error) || 'Could not save — please try again.'); return; } }
     Object.assign(courseById(f.dataset.id), patch);
   } else {
     const lv = levelInfo(v.level);
-    const row = { id: uid('c'), slug: slugify(v.title) + '-' + Math.random().toString(36).slice(2, 5), title: v.title, sys: lv.sys, level: v.level, subject: v.subject, board: v.board, tier: '', desc: v.desc || 'Course description coming soon.', audience: `Students in ${lv.years.join(', ')} (ages ${lv.ages}).`, topics: topicsFor(v.subject, v.level), fee: +v.fee, trial: false, active: v.active === '1', needs: 'A device with a camera and microphone, a stable internet connection, pen and paper.' };
+    const row = { id: uid('c'), slug: slugify(v.title) + '-' + Math.random().toString(36).slice(2, 5), title: v.title, sys: lv.sys, level: v.level, subject: v.subject, board: v.board, tier: '', desc: v.desc || 'Course description coming soon.', audience: `Students in ${lv.years.join(', ')} (ages ${lv.ages}).`, topics: topicsFor(v.subject, v.level), fee: levelPrice(v.level, 'group'), trial: false, active: v.active === '1', needs: 'A device with a camera and microphone, a stable internet connection, pen and paper.' };
     if (LIVE_BACKEND) { const r = await api('courses', { method: 'POST', body: row }); if (!r.ok) { toast((r.data && r.data.error) || 'Could not save — please try again.'); return; } row.id = r.data.course.id; row.slug = r.data.course.slug; }
     S.courses.push(row);
   }
@@ -137,7 +176,7 @@ R('/admin/teachers', (p, q, u) => {
   <div class="toolbar">${searchBox('atq', UI.atq, 'atSearch', 'Search teacher or subject')}<div class="grow"></div>${LIVE_BACKEND ? h`<button class="btn btn-pink" data-act="atNew">${ic('plus')}Add teacher</button>` : h`<span class="small muted">Connect the live backend to create real teacher sign-in accounts.</span>`}</div>
   ${tableHTML(['Teacher', 'Subjects', 'Levels', 'Classes', 'Students', 'Published', ''], teachers.map(t => {
     const classes = S.classes.filter(c => c.teacherId === t.id);
-    const students = new Set(classes.flatMap(c => S.enrolments.filter(e => e.classId === c.id && ['Active', 'Pending Confirmation'].includes(e.status)).map(e => e.childId))).size;
+    const students = new Set(classes.flatMap(c => S.enrolments.filter(e => e.classId === c.id && ['Active', 'Pending Confirmation', 'Awaiting Payment'].includes(e.status)).map(e => e.childId))).size;
     return h`<tr>${td('Teacher', h`<strong>${t.name}</strong><br><span class="small muted">${t.live ? t.email : 'Sample profile (About page)'}</span>`)}${td('Subjects', t.subjects || '–')}${td('Levels', t.levels || '–')}${td('Classes', classes.length)}${td('Students', students)}${td('Published', h`<span class="sw"><input type="checkbox" data-on="toggleTeacher" data-id="${t.id}" ${t.publish ? raw('checked') : ''} aria-label="Published: ${t.name}"><span></span></span>`)}${td('', h`<div class="row" style="gap:6px;justify-content:flex-end"><button class="btn btn-outline btn-sm" data-act="atView" data-id="${t.id}">Manage</button>${t.live ? h`<button class="btn btn-danger btn-sm" data-act="atDel" data-id="${t.id}">Remove</button>` : ''}</div>`, 'act')}</tr>`;
   }), { empty: 'No teachers match.' })}`);
 }, AR);
@@ -173,14 +212,14 @@ Actions.atDelGo = async t => {
 };
 Actions.atView = t => {
   const te = userById(t.dataset.id), classes = S.classes.filter(c => c.teacherId === te.id);
-  const rosterRow = cl => { const roster = S.enrolments.filter(e => e.classId === cl.id && ['Active', 'Pending Confirmation'].includes(e.status)).map(e => childById(e.childId)).filter(Boolean);
+  const rosterRow = cl => { const roster = S.enrolments.filter(e => e.classId === cl.id && ['Active', 'Pending Confirmation', 'Awaiting Payment'].includes(e.status)).map(e => childById(e.childId)).filter(Boolean);
     return h`<div class="li" style="align-items:flex-start"><div class="grow"><div class="t">${clsCourse(cl).title}</div><div class="s">${schedText(cl).short} · ${filledCount(cl)}/${cl.capacity} seats</div>${roster.length ? h`<div class="chips" style="margin-top:6px">${roster.map(k => chip(k.first + ' ' + k.last, 'chip-grey'))}</div>` : h`<div class="small muted" style="margin-top:4px">No students yet.</div>`}</div><button class="btn btn-outline btn-sm" data-act="atAddStudent" data-class="${cl.id}">${ic('user-plus')}Add student</button></div>`; };
   openModal({ title: te.name, body: h`<div class="stack"><p class="small muted" style="margin:0">${te.subjects || ''}${te.levels ? ' · ' + te.levels : ''}</p>
-  ${classes.length ? h`<div class="list">${classes.map(rosterRow)}</div>` : emptyState({ icon: 'calendar', title: 'No classes assigned', text: 'Assign this teacher to a class in Admin → Classes.' })}</div>`, foot: h`<button class="btn btn-outline" data-act="atEdit" data-id="${te.id}">Edit profile</button><button class="btn btn-primary" data-act="closeModal">Close</button>` });
+  ${classes.length ? h`<div class="list">${classes.map(rosterRow)}</div>` : emptyState({ icon: 'calendar', title: 'No classes assigned', text: 'Assign this teacher to a class in Admin → Classes.' })}</div>`, foot: h`<button class="btn btn-outline" data-act="atEdit" data-id="${te.id}">Edit profile</button>${te.live ? h`<button class="btn btn-outline" data-act="arpOpen" data-role="teacher" data-id="${te.id}">Reset password</button>` : ''}<button class="btn btn-primary" data-act="closeModal">Close</button>` });
 };
 Actions.atAddStudent = t => {
   const classId = t.dataset.class, cl = classById(classId);
-  const already = new Set(S.enrolments.filter(e => e.classId === classId && ['Active', 'Pending Confirmation', 'Waitlisted'].includes(e.status)).map(e => e.childId));
+  const already = new Set(S.enrolments.filter(e => e.classId === classId && ['Active', 'Pending Confirmation', 'Awaiting Payment', 'Waitlisted'].includes(e.status)).map(e => e.childId));
   const kids = S.children.filter(k => !already.has(k.id));
   openModal({ title: 'Add student to ' + clsCourse(cl).title, body: kids.length ? h`<div class="field"><label for="asKid">Student</label><select class="sel" id="asKid">${kids.map(k => h`<option value="${k.id}">${k.first} ${k.last} (${k.stage}) · ${pname(k.parentId)}</option>`)}</select></div><p class="small muted" style="margin-top:8px">${filledCount(cl)}/${cl.capacity} seats filled. The student is enrolled immediately as Active.</p>` : h`<p>Every known student is already in this class.</p>`, foot: h`<button class="btn btn-outline" data-act="closeModal">Cancel</button>${kids.length ? h`<button class="btn btn-primary" data-act="atAddStudentGo" data-class="${classId}">Add student</button>` : ''}` });
 };
@@ -201,10 +240,42 @@ R('/admin/families', (p, q, u) => {
   const parents = S.users.filter(x => x.role === 'parent' && (!term || (x.name + x.email).toLowerCase().includes(term))).slice(0, 30);
   const kids = S.children.filter(k => !term || (k.first + ' ' + k.last).toLowerCase().includes(term)).slice(0, 30);
   return adminPage('Parents & Children', 'users', 'Search accounts and child profiles', h`<div class="toolbar"><div class="tabs" style="margin:0;border:0"><a href="#/admin/families?tab=parents" ${tab === 'parents' ? raw('aria-current="page"') : ''}>Parents</a><a href="#/admin/families?tab=children" ${tab === 'children' ? raw('aria-current="page"') : ''}>Children</a></div><div class="grow"></div>${LIVE_BACKEND ? h`<button class="btn btn-outline btn-sm" data-act="famRefresh">${ic('refresh')}Refresh</button>` : ''}${searchBox('afq', UI.afq, 'afSearch', 'Search by name or email')}</div>
-  ${tab === 'parents' ? tableHTML(['Parent', 'Email', 'Phone', 'Children', 'Verified'], parents.map(x => h`<tr>${td('Parent', h`<strong>${x.name}</strong>`)}${td('Email', x.email)}${td('Phone', x.phone || '–')}${td('Children', childrenOf(x.id).length)}${td('Verified', chip(x.verified ? 'Verified' : 'Not verified', x.verified ? 'chip-green' : 'chip-yellow'))}</tr>`), { plain: true }) : tableHTML(['Child', 'Stage', 'System', 'Parent', 'Courses'], kids.map(k => h`<tr>${td('Child', h`<strong>${k.first} ${k.last}</strong>`)}${td('Stage', k.stage)}${td('System', SYS[k.sys].short)}${td('Parent', pname(k.parentId))}${td('Courses', courseCount(k))}</tr>`), { plain: true })}<p class="form-note">Showing up to 30 matches. Search to narrow down.${LIVE_BACKEND ? ' New sign-ups elsewhere won\u2019t appear automatically \u2014 use Refresh to check for them.' : ''}</p>`);
+  ${tab === 'parents' ? tableHTML(['Parent', 'Email', 'Phone', 'Children', 'Verified', ''], parents.map(x => h`<tr>${td('Parent', h`<a href="#/admin/families/parent/${x.id}"><strong>${x.name}</strong></a>`)}${td('Email', x.email)}${td('Phone', x.phone || '–')}${td('Children', childrenOf(x.id).length)}${td('Verified', chip(x.verified ? 'Verified' : 'Not verified', x.verified ? 'chip-green' : 'chip-yellow'))}${td('', x.live ? h`<button class="btn btn-outline btn-sm" data-act="arpOpen" data-role="parent" data-id="${x.id}">Reset password</button>` : '', 'act')}</tr>`), { plain: true }) : tableHTML(['Child', 'Stage', 'System', 'Parent', 'Courses'], kids.map(k => h`<tr>${td('Child', h`<a href="#/admin/families/child/${k.id}"><strong>${k.first} ${k.last}</strong></a>`)}${td('Stage', k.stage)}${td('System', SYS[k.sys].short)}${td('Parent', h`<a href="#/admin/families/parent/${k.parentId}">${pname(k.parentId)}</a>`)}${td('Courses', courseCount(k))}</tr>`), { plain: true })}<p class="form-note">Showing up to 30 matches. Search to narrow down.${LIVE_BACKEND ? ' New sign-ups elsewhere won\u2019t appear automatically \u2014 use Refresh to check for them.' : ''}</p>`);
+}, AR);
+const FAM_BACK = h`<div class="toolbar"><a class="btn btn-outline btn-sm" href="#/admin/families">${ic('arrow-left')}Back to Parents & Children</a></div>`;
+R('/admin/families/parent/:id', (p, q, u) => {
+  const x = userById(p.id); if (!x || x.role !== 'parent') return { redirect: '/admin/families' };
+  const ks = childrenOf(x.id), inv = S.invoices.filter(i => i.parentId === x.id);
+  return adminPage(x.name, 'users', 'Parent account', h`${FAM_BACK}
+  <section class="panel" style="margin-bottom:18px"><h2>Account</h2><dl class="kv"><dt>Email</dt><dd>${x.email}</dd><dt>Phone</dt><dd>${x.phone || '–'}</dd><dt>Verified</dt><dd>${x.verified ? 'Yes' : 'No'}</dd><dt>Invoices</dt><dd>${inv.length} (${inv.filter(i => i.status === 'Due').length} due)</dd></dl>${x.live ? h`<button class="btn btn-outline btn-sm" data-act="arpOpen" data-role="parent" data-id="${x.id}">Reset password</button>` : ''}</section>
+  <section class="panel"><h2>Children (${ks.length})</h2>${tableHTML(['Child', 'Stage', 'System', 'Courses', ''], ks.map(k => h`<tr>${td('Child', h`<a href="#/admin/families/child/${k.id}"><strong>${k.first} ${k.last}</strong></a>`)}${td('Stage', k.stage)}${td('System', SYS[k.sys].short)}${td('Courses', courseCount(k))}${td('', h`<a class="btn btn-outline btn-sm" href="#/admin/families/child/${k.id}">View</a>`, 'act')}</tr>`), { plain: true, empty: 'No children added yet.' })}</section>`);
+}, AR);
+R('/admin/families/child/:id', (p, q, u) => {
+  const k = childById(p.id); if (!k) return { redirect: '/admin/families?tab=children' };
+  const en = S.enrolments.filter(e => e.childId === k.id && classById(e.classId)).sort((a, b) => (b.created || '').localeCompare(a.created || '')), o2 = (S.o2o || []).filter(r => r.childId === k.id && r.status !== 'Withdrawn');
+  return adminPage(`${k.first} ${k.last}`, 'users', `${k.stage} · ${SYS[k.sys].short}`, h`${FAM_BACK}
+  <section class="panel" style="margin-bottom:18px"><h2>Details</h2><dl class="kv"><dt>Parent</dt><dd><a href="#/admin/families/parent/${k.parentId}">${pname(k.parentId)}</a></dd><dt>Education system</dt><dd>${SYS[k.sys].short}</dd><dt>School year</dt><dd>${k.stage} (${levelName(levelOfStage(k.sys, k.stage))})</dd>${k.dob ? h`<dt>Date of birth</dt><dd>${fmtDate(k.dob, 'dmy')}</dd>` : ''}${k.school ? h`<dt>School</dt><dd>${k.school}</dd>` : ''}${k.notes ? h`<dt>Notes</dt><dd>${k.notes}</dd>` : ''}<dt>Active courses</dt><dd>${courseCount(k)}</dd></dl></section>
+  <section class="panel" style="margin-bottom:18px"><h2>Courses (${en.length})</h2>${tableHTML(['Course', 'Class time', 'Billing', 'Fee', 'Status', 'Requested'], en.map(e => { const cl = classById(e.classId), co = clsCourse(cl); return h`<tr>${td('Course', h`<strong>${co.title}</strong>`)}${td('Class time', schedText(cl).short)}${td('Billing', e.billingPeriod === 'term' ? 'Termly' : e.billingPeriod === 'custom' ? 'Custom' : 'Monthly')}${td('Fee', money(classFee(cl)) + ' / lesson')}${td('Status', statusChip(e.status))}${td('Requested', fmtDate(e.created, 'dm'))}</tr>`; }), { plain: true, empty: 'Not enrolled on any course yet.' })}</section>
+  ${o2.length ? h`<section class="panel"><h2>One-to-one requests</h2><div class="list">${o2.map(r => h`<div class="li"><div class="grow"><div class="t">${subj(r.subject).name}</div><div class="s">${o2oSummary(r.slots)}${r.note ? ' · ' + r.note : ''}</div></div>${chip(r.status, r.status === 'Arranged' ? 'chip-green' : 'chip-yellow')}</div>`)}</div></section>` : ''}`);
 }, AR);
 Actions.famRefresh = async () => { toast('Checking for new families…'); await mirrorDirectory(me()); render({ keepScroll: true }); toast('Up to date.'); };
 Changes.afSearch = el => { UI.afq = el.value; render({ keepScroll: true }); };
+
+/* ---- admin password reset (parents & teachers) ---- */
+Actions.arpOpen = t => {
+  const role = t.dataset.role, id = t.dataset.id, name = (userById(id) || { name: 'this account' }).name;
+  openModal({
+    title: 'Reset password', body: h`<p>Set a new password for <strong>${name}</strong>. They will be signed out of any device they are currently signed in on, and will need the new password to sign in again.</p>
+    <form data-form="arpGo" data-role="${role}" data-id="${id}" novalidate>${fld({ name: 'password', label: 'New password', type: 'password', req: 1, auto: 'new-password', hint: 'At least 8 characters, including a number. Share this with them yourself.' })}
+    <div class="row" style="margin-top:14px;justify-content:flex-end"><button type="button" class="btn btn-outline" data-act="closeModal">Cancel</button><button class="btn btn-primary" type="submit">Set new password</button></div></form>`
+  });
+};
+Forms.arpGo = async (f, v) => {
+  const e = {}; if (!v.password || v.password.length < 8 || !/\d/.test(v.password)) e.password = 'Use at least 8 characters, including a number.'; if (!showErrors(f, e)) return;
+  const r = await api('admin-reset-password', { method: 'POST', body: { role: f.dataset.role, id: f.dataset.id, password: v.password } });
+  if (!r.ok) { toast((r.data && r.data.error) || 'Could not reset the password — please try again.'); return; }
+  closeModal(); toast(`Password reset for ${r.data.name}.`);
+};
 
 /* ---- resources ---- */
 R('/admin/resources', (p, q, u) => {
@@ -365,11 +436,12 @@ R('/admin/setup', (p, q, u) => {
   return page;
 }, AR);
 function btn2(label, act, icon) { return h`<button class="btn btn-outline" data-act="${act}">${ic(icon)}${label}</button>`; }
-Forms.siteDetails = (f, v) => {
+Forms.siteDetails = async (f, v) => {
   const e = {}; if (!v.name) e.name = 'Enter an organisation name.'; if (!isEmail(v.email)) e.email = 'Enter a valid email address.'; if (!showErrors(f, e)) return;
   S.settings = { ...S.settings, name: v.name, tagline: v.tagline, phone: v.phone, phoneHref: v.phoneHref, email: v.email, whatsapp: v.whatsapp, hours: v.hours,
     siblingDiscount: +v.siblingDiscount || 0, multiCourseLessons: +v.multiCourseLessons || 0, multiCourseDiscount: +v.multiCourseDiscount || 0, previewBuild: !!v.previewBuild,
     social: Object.fromEntries(['facebook', 'instagram', 'youtube', 'linkedin', 'tiktok'].map(k => [k, v[k]]).filter(([, val]) => val)) };
+  if (LIVE_BACKEND) { const r = await api('pricing', { method: 'POST', body: { siblingDiscount: S.settings.siblingDiscount, multiCourseLessons: S.settings.multiCourseLessons, multiCourseDiscount: S.settings.multiCourseDiscount } }); if (!r.ok) toast('Saved here, but the discounts could not be saved for everyone — try again.'); }
   applySiteSettings(); save(); toast('Site details saved.'); render({ keepScroll: true });
 };
 
@@ -405,7 +477,10 @@ Actions.markPaidManualGo = async t => {
   const r = await api('invoices', { method: 'PATCH', body: { parentId: t.dataset.parent, id: t.dataset.id, manual: true } });
   closeModal();
   if (!r.ok) { toast((r.data && r.data.error) || 'Could not update — please try again.'); return; }
-  await mirrorAllInvoices(me()); toast('Marked as paid.'); render({ keepScroll: true });
+  // Paying off a first-payment invoice may also activate the enrolment(s) it was
+  // holding as "Awaiting Payment" — refresh both so admin sees the roster update too.
+  await Promise.all([mirrorAllInvoices(me()), mirrorEnrolments(me())]);
+  toast('Marked as paid.'); render({ keepScroll: true });
 };
 
 /* ---- file storage (Netlify / Google Drive / OneDrive / GitHub) ---- */

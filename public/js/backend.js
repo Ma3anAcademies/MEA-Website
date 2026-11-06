@@ -74,7 +74,25 @@ function mergeLive(localArray, serverItems, mapRow) {
     first time an admin visits a freshly-connected (empty) backend, this seeds it from the
     existing demo catalog, keeping the same ids, so all the existing demo homework, resources
     and messages (still local for now) keep matching up correctly. */
+/** Admin-set lesson prices (per level, group and one-to-one) and discount settings live on
+    the server so every family sees what admin set. Only signed-in users can read them —
+    prices aren't shown to visitors who haven't signed in. */
+async function mirrorPricing() {
+  const r = await api('pricing');
+  if (!r.ok || !r.data.pricing) return;
+  const p = r.data.pricing, patch = { levelPrices: p.levelPrices || {} };
+  ['multiCourseLessons', 'multiCourseDiscount', 'siblingDiscount'].forEach(k => { if (p[k] != null) patch[k] = p[k]; });
+  S.settings = { ...S.settings, ...patch }; applySiteSettings(); save();
+}
+/** One-to-one lesson requests: a parent's own, or all of them for admin. */
+async function mirrorO2O() {
+  const r = await api('onetoone');
+  if (!r.ok) return;
+  S.o2o = mergeLive(S.o2o || [], r.data.requests, x => ({ id: x.id, childId: x.childId, parentId: x.parentId, subject: x.subject, level: x.level, board: x.board || '', slots: x.slots || [], pricePerLesson: x.pricePerLesson, status: x.status, note: x.note || '', created: new Date(x.created).toISOString().slice(0, 10), live: true }));
+  save();
+}
 async function syncCatalog(user) {
+  if (user) await mirrorPricing();
   let [co, cl] = await Promise.all([api('courses'), api('classes')]);
   if (!co.ok || !cl.ok) return;
   if (!co.data.courses.length && !cl.data.classes.length && user && user.role === 'admin') {
@@ -97,6 +115,7 @@ async function syncCatalog(user) {
 
 /** Real enrolment requests, merged alongside the existing demo/preview ones. */
 async function mirrorEnrolments(user) {
+  if (user && (user.role === 'parent' || user.role === 'admin')) await mirrorO2O();
   const r = await api('enrolments');
   if (!r.ok) return;
   S.enrolments = mergeLive(S.enrolments, r.data.enrolments, e => ({ id: e.id, childId: e.childId, classId: e.classId, status: e.status, billingPeriod: e.billingPeriod, customLessons: e.customLessons, customUntil: e.customUntil, bundleDiscountPct: e.bundleDiscountPct, created: new Date(e.created).toISOString().slice(0, 10), live: true }));
@@ -206,7 +225,7 @@ async function mirrorThreadMessages(threadId) {
   if (th) { th.unreadParent = r.data.thread.unreadParent; th.unreadStaff = r.data.thread.unreadStaff; th.messages = r.data.messages.map(m => ({ from: m.from, text: m.body, at: new Date(m.at).toISOString().slice(0, 16) })); }
   save();
 }
-const mapInvoice = x => ({ id: x.id, parentId: x.parentId, period: x.period, issued: x.issuedDate, due: x.dueDate, status: x.status, paidOn: x.paidOn, discountPct: x.discountPct, lines: (x.lines || []).map(l => ({ child: l.child, desc: l.desc, amt: l.amount })), live: true });
+const mapInvoice = x => ({ id: x.id, parentId: x.parentId, period: x.period, issued: x.issuedDate, due: x.dueDate, status: x.status, paidOn: x.paidOn, discountPct: x.discountPct, lines: (x.lines || []).map(l => ({ child: l.child, desc: l.desc, amt: l.amount })), enrolmentIds: x.enrolmentIds || [], live: true });
 /** Reads a real <input type=file>'s chosen file and uploads it through whichever
     storage provider admin has active (Netlify by default, or Drive/OneDrive/GitHub
     once connected in Admin → Setup & Integrations) — the caller never needs to know

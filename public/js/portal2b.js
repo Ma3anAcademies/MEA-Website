@@ -60,7 +60,10 @@ R('/my-mea/payments/invoices/:id', (p, q, u) => {
       : canPay ? h`<button class="btn btn-pink" style="margin-top:16px" data-act="payInvoice" data-id="${inv.id}">${ic('credit-card')}Pay ${money(t.total)} now</button><p class="small muted" style="margin-top:8px">${ic('lock')} Handled entirely by Stripe — your card details never reach this site.</p>`
       : h`<div class="alert alert-info" style="margin-top:16px">${ic('info')}<span>Online payment is not available yet. Please use the payment instructions sent with your confirmation, or contact support.</span></div>`}
     <div class="row" style="margin-top:14px">${btn('Payment help', '/my-mea/support?topic=payments', 'btn-outline')}</div></div>`,
-    after() { if (LIVE_BACKEND && inv.live) liveRefresh(mirrorMyInvoices()); }
+    // Paying this invoice may also activate an enrolment that was held as
+    // "Awaiting Payment" — refresh both so the roster/Learning Hub access updates
+    // without needing a full page reload.
+    after() { if (LIVE_BACKEND && inv.live) { liveRefresh(mirrorMyInvoices()); liveRefresh(mirrorEnrolments(u)); } }
   };
 }, PR);
 Actions.payInvoice = async t => {
@@ -79,7 +82,7 @@ R('/my-mea/payments', (p, q, u) => {
     ${LIVE_BACKEND && PAYMENTS_CONFIGURED
       ? h`<div class="alert alert-ok" style="margin-top:20px">${ic('check-circle')}<span>Online card payment is available — open a "Due" invoice and pay securely with Stripe.</span></div>`
       : h`<div class="alert alert-info" style="margin-top:20px">${ic('info')}<span>Online card payment isn't connected on this site yet. Until then, pay using the instructions sent with your enrolment confirmation, or <a href="#/my-mea/support?topic=payments">contact support</a>.</span></div>`}`,
-    after() { if (LIVE_BACKEND) liveRefresh(mirrorMyInvoices()); }
+    after() { if (LIVE_BACKEND) { liveRefresh(mirrorMyInvoices()); liveRefresh(mirrorEnrolments(u)); } }
   };
 }, PR);
 

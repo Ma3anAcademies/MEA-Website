@@ -17,6 +17,7 @@ const SITE = {
   siblingDiscount: 10,             // % – set to 0 to hide until officially approved
   multiCourseLessons: 0,           // total lessons across a selection needed to unlock the discount below; 0 = off
   multiCourseDiscount: 10,         // % applied once a selection reaches multiCourseLessons
+  levelPrices: {},                 // { levelId: { group, one2one } } £ per lesson, set in Admin → Courses; synced from the server
   previewBuild: true               // shows the "sample content" note in the footer
 };
 /* Every field above is a fallback default only. Once the site loads, Admin → Setup &
@@ -160,7 +161,7 @@ function featHov(items, gridClass = 'g3') {
 }
 function statusChip(st) {
   const M = {
-    'Active': ['chip-green', 'check-circle'], 'Pending Confirmation': ['chip-yellow', 'clock'], 'Waitlisted': ['chip-purple', 'clock'], 'Completed': ['chip-grey', 'check'],
+    'Active': ['chip-green', 'check-circle'], 'Pending Confirmation': ['chip-yellow', 'clock'], 'Awaiting Payment': ['chip-pink', 'credit-card'], 'Waitlisted': ['chip-purple', 'clock'], 'Completed': ['chip-grey', 'check'],
     'Cancelled': ['chip-red', 'x'], 'Withdrawn': ['chip-red', 'x'], 'Declined': ['chip-red', 'x'],
     'To do': ['chip-yellow', 'clock'], 'Due soon': ['chip-pink', 'alert-triangle'], 'Overdue': ['chip-red', 'alert-triangle'], 'Submitted': ['chip-blue', 'check'], 'Marked': ['chip-green', 'check-circle'],
     'Paid': ['chip-green', 'check-circle'], 'Due': ['chip-yellow', 'clock'], 'Open': ['chip-blue', 'circle'], 'Resolved': ['chip-green', 'check-circle'], 'New': ['chip-pink', 'sparkles'],

@@ -19,7 +19,7 @@ const levelName = id => (levelInfo(id) || {}).name || id;
 const grpOf = subjectId => (subj(subjectId) || { grp: 'blue' }).grp;
 const childrenOf = pid => S.children.filter(c => c.parentId === pid);
 const enrolsOf = (cid, statuses) => S.enrolments.filter(e => e.childId === cid && (!statuses || statuses.includes(e.status)));
-const OCCUPY = ['Active', 'Pending Confirmation'];
+const OCCUPY = ['Active', 'Pending Confirmation', 'Awaiting Payment'];
 const filledCount = cl => S.enrolments.filter(e => e.classId === cl.id && OCCUPY.includes(e.status)).length;
 const seatsLeft = cl => Math.max(0, cl.capacity - filledCount(cl));
 /* Fees are priced per lesson. A family pays for a term or a month at a time:
@@ -29,7 +29,27 @@ const seatsLeft = cl => Math.max(0, cl.capacity - filledCount(cl));
    today's actual date through its last day) — not a fixed 4-week window —
    so a family joining late in the month is correctly charged for fewer
    lessons than one joining at the start of it. */
-const classFee = cl => cl.feeOverride != null && cl.feeOverride !== '' ? +cl.feeOverride : clsCourse(cl).fee;
+/* Prices are set once per level (Admin → Courses → Lesson prices), separately for group
+   and one-to-one lessons. Until admin saves a price for a level, group falls back to the
+   course's own fee and one-to-one to double that, so nothing ever shows as £0 by accident. */
+function levelPrice(levelId, type) {
+  const lp = (SITE.levelPrices || {})[levelId];
+  if (lp && lp[type] != null) return +lp[type];
+  const c = S.courses.find(x => x.level === levelId), g = c ? +c.fee || 0 : 0;
+  return type === 'one2one' ? Math.round(g * 2) : g;
+}
+const classFee = cl => cl.feeOverride != null && cl.feeOverride !== '' ? +cl.feeOverride : levelPrice(clsCourse(cl).level, 'group');
+/* One-to-one availability grid: every day except Saturday, hourly slots 5pm-10pm.
+   A slot key is "<day of week>-<start hour>", e.g. "1-17" = Monday 5-6pm. */
+const O2O_DAYS = [1, 2, 3, 4, 5, 0], O2O_HOURS = [17, 18, 19, 20, 21];
+const o2oHourLabel = h => `${h - 12}–${h - 11}pm`;
+function o2oSummary(slots) {
+  return O2O_DAYS.map(d => {
+    const hrs = O2O_HOURS.filter(h => (slots || []).includes(d + '-' + h)); if (!hrs.length) return '';
+    const runs = []; hrs.forEach(h => { const l = runs[runs.length - 1]; if (l && l[1] === h) l[1] = h + 1; else runs.push([h, h + 1]); });
+    return DS[d] + ' ' + runs.map(([a, b]) => `${a - 12}–${b - 12}pm`).join(', ');
+  }).filter(Boolean).join(' · ');
+}
 const lessonsInTerm = cl => { const from = todayISO() > S.term.start ? todayISO() : S.term.start; return classSessions(cl, from, S.term.end).length; };
 const lessonsInMonth = (cl, fromISO) => { const from = fromISO || todayISO(); return classSessions(cl, from, endOfMonthISO(from)).length; };
 function periodLessons(cl, period) { return period === 'term' ? lessonsInTerm(cl) : lessonsInMonth(cl); }

@@ -5,6 +5,7 @@ import { listEnrolments, markCustomBilled } from "./_lib/enrolments.mjs";
 import { listCourses } from "./_lib/courses.mjs";
 import { listClasses } from "./_lib/classes.mjs";
 import { periodTotal } from "./_lib/pricing.mjs";
+import { getPricing } from "./_lib/pricing-settings.mjs";
 import { json, err } from "./_lib/http.mjs";
 
 export default async (req) => {
@@ -27,7 +28,7 @@ export default async (req) => {
       // Fees are per lesson: each enrolment's own billing-period choice ("month" or "term",
       // picked by the family at enrolment) decides how many of that class's real weekly
       // lessons the invoice line covers.
-      const [allEnrolments, allChildren, allClasses, allCourses] = await Promise.all([listEnrolments(), listAllChildren(), listClasses(), listCourses()]);
+      const [allEnrolments, allChildren, allClasses, allCourses, prices] = await Promise.all([listEnrolments(), listAllChildren(), listClasses(), listCourses(), getPricing()]);
       const active = allEnrolments.filter((e) => e.status === "Active");
       const byParent = new Map();
       const customBilledIds = [];
@@ -40,7 +41,7 @@ export default async (req) => {
         const cls = allClasses.find((c) => c.id === e.classId); if (!cls) continue;
         const course = allCourses.find((c) => c.id === cls.courseId); if (!course) continue;
         const period = e.billingPeriod === "term" ? "term" : e.billingPeriod === "custom" ? "custom" : "month";
-        const { feePerLesson, lessons, total: rawTotal } = periodTotal(cls, course, period, null, e);
+        const { feePerLesson, lessons, total: rawTotal } = periodTotal(cls, course, period, null, e, prices);
         const bundlePct = Math.max(0, Math.min(100, Number(e.bundleDiscountPct) || 0));
         const total = bundlePct ? Math.round(rawTotal * (1 - bundlePct / 100) * 100) / 100 : rawTotal;
         const periodLabel = period === "term" ? "this term" : period === "custom" ? "one-off block" : "this month";

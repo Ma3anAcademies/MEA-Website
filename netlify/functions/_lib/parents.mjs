@@ -76,6 +76,22 @@ export async function changeParentPassword(id, current, next) {
   return { account: updated };
 }
 
+/** Admin-only: force-sets a parent's password, bypassing the normal "know your
+    current password" or "click the emailed link" flows — for when a family can't
+    get into their account any other way. Bumps epoch, which immediately signs
+    them out of any device they're currently signed in on (session.mjs checks it
+    on every request), same as a self-service reset does. */
+export async function adminSetParentPassword(id, newPassword) {
+  const a = await getAccount(id);
+  if (!a) return { error: "That parent account wasn't found." };
+  const problem = passwordProblem(newPassword);
+  if (problem) return { error: problem };
+  const salt = crypto.randomBytes(16);
+  const updated = { ...a, salt: salt.toString("hex"), hash: (await scrypt(String(newPassword), salt, 64)).toString("hex"), epoch: a.epoch + 1 };
+  await putAccount(updated);
+  return { account: updated };
+}
+
 export async function updateParentProfile(id, { name, phone, whatsapp }) {
   const a = await getAccount(id);
   if (!a) return { error: "Sign in again first." };
