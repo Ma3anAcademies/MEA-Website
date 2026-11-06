@@ -37,7 +37,7 @@ function classCard(cl, u, year, levelLabel, opts) {
   <h3><a href="#/courses/${co.slug}">${mainTitle}</a></h3><div class="small muted">${subLine}</div>
   <div class="meta"><div>${ic('calendar')}<span>${sc.days}</span></div><div>${ic('clock')}<span>${sc.time} (UK time)</span></div><div>${ic('laptop')}<span>Live online classes</span></div><div>${ic('layers')}<span>${startsLater(cl) ? 'Starts ' + fmtDate(cl.startDate) : cl.term}</span></div></div>
   <div class="foot">${me() ? h`<div class="fee">${money(classFee(cl))} <small>/ lesson</small></div>` : h`<div class="small muted">Sign in to see prices</div>`}${co.trial ? chip('Trial class available', 'chip-purple', 'sparkles') : ''}</div>
-  <div class="btns"><a class="btn btn-outline btn-sm" href="#/courses/${co.slug}">View Course</a>${selectBtn}${el ? h`<a class="btn ${a.k === 'full' ? 'btn-outline-pink' : 'btn-pink'} btn-sm" href="#${el.href}">${el.label}</a>` : ''}</div></article>`;
+  <div class="btns"><a class="btn btn-outline btn-sm" href="#/courses/${co.slug}">View Course</a>${selectBtn}${el && me() && me().role === 'parent' && !(opts && opts.select) ? h`<button type="button" class="btn ${a.k === 'full' ? 'btn-outline-pink' : 'btn-pink'} btn-sm" data-act="courseEnrol" data-slug="${co.slug}">${el.label}</button>` : el ? h`<a class="btn ${a.k === 'full' ? 'btn-outline-pink' : 'btn-pink'} btn-sm" href="#${el.href}">${el.label}</a>` : ''}</div></article>`;
 }
 
 /* ---------------- HOME ---------------- */
@@ -168,6 +168,19 @@ Actions.resetFilters = () => setQuery({ level: '', year: '', subject: '', board:
 Changes.cf = el => { const k = el.dataset.k, patch = { [k]: el.value, at: '' }; if (k === 'subject') patch.board = ''; setQuery(patch); };
 Changes.cfYL = el => { const v = el.value; setQuery(v.startsWith('L:') ? { level: v.slice(2), year: '', subject: '', board: '', at: '' } : { year: v, level: '', subject: '', board: '', at: '' }); };
 
+/* Enrol Child on a course: choose group (and which slot) or one-to-one first. */
+Actions.courseEnrol = t => {
+  const co = courseBySlug(t.dataset.slug), u = me(); if (!co) return;
+  const cls = S.classes.filter(c => c.courseId === co.id && avail(c).k !== 'closed');
+  openModal({ title: `Enrol in ${co.title}`, body: h`<p>How would your child like to learn?</p>
+    <h3 style="font-size:1rem;margin:14px 0 6px">${ic('users')} Group sessions · ${money(levelPrice(co.level, 'group'))} per lesson</h3>
+    ${cls.length ? h`<div class="stack">${cls.map(cl => { const sc = schedText(cl), aa = avail(cl), ee = enrolLink(cl, u); return h`<div class="row" style="justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--line)"><div><div class="strong">${sc.days}</div><div class="small muted">${sc.time} (UK time) · ${startsLater(cl) ? 'Starts ' + fmtDate(cl.startDate) : cl.term}</div>${chip(aa.label, aa.cls, aa.icon)}</div>${ee ? h`<button type="button" class="btn ${aa.k === 'full' ? 'btn-outline-pink' : 'btn-pink'} btn-sm" data-act="courseGo" data-href="${ee.href}">${ee.label}</button>` : ''}</div>`; })}</div>` : h`<p class="muted">No group slots are open right now.</p>`}
+    <h3 style="font-size:1rem;margin:18px 0 6px">${ic('user')} One-to-one · ${money(levelPrice(co.level, 'one2one'))} per lesson</h3>
+    <p class="small muted">A tutor just for your child. You tick the times you are free and we arrange it.</p><button type="button" class="btn btn-outline" data-act="courseOne" data-s="${co.subject}" data-b="${co.board || ''}">Choose one-to-one</button>` });
+};
+Actions.courseGo = t => { closeModal(); go(t.dataset.href); };
+Actions.courseOne = t => { closeModal(); go('/my-mea/courses/one-to-one' + qs({ subject: t.dataset.s, board: t.dataset.b || '' })); };
+
 /* ---------------- COURSE DETAIL ---------------- */
 R('/courses/:slug', (p, q, u) => {
   const co = courseBySlug(p.slug); if (!co || !co.active) return notFoundView();
@@ -179,7 +192,7 @@ R('/courses/:slug', (p, q, u) => {
     title: co.title, body: h`<section class="banner"><div class="wrap" style="grid-template-columns:1fr"><div><div class="crumbs"><a href="#/courses">Courses &amp; Subjects</a> / <a href="#/courses${qs({ system: co.sys, level: co.level })}">${lv.name}</a></div>
       <div class="chips" style="margin-bottom:10px">${chip(SYS[co.sys].short, 'chip-grey', 'globe')}${chip(lv.name, 'chip-blue')}${co.board ? chip(co.board, 'chip-grey') : ''}${co.tier ? chip(co.tier, 'chip-yellow') : ''}${chip(a.label, a.cls, a.icon)}</div>
       <h1>${co.title}</h1><p class="sub">${co.desc}</p>
-      <div class="actions">${el ? h`<a class="btn ${a.k === 'full' ? 'btn-outline-pink' : 'btn-pink'}" href="#${el.href}">${a.k === 'full' ? 'Join Waitlist' : 'Enrol Child'}</a>` : ''}${!u ? btn('Create Account', '/account/create' + qs({ return: '/courses/' + co.slug }), 'btn-outline') : ''}${btn('View Timetable', '/timetables-fees', 'btn-outline')}</div>
+      <div class="actions">${u && u.role === 'parent' ? h`<button type="button" class="btn btn-pink" data-act="courseEnrol" data-slug="${co.slug}">Enrol Child</button>` : el ? h`<a class="btn ${a.k === 'full' ? 'btn-outline-pink' : 'btn-pink'}" href="#${el.href}">${a.k === 'full' ? 'Join Waitlist' : 'Enrol Child'}</a>` : ''}${!u ? btn('Create Account', '/account/create' + qs({ return: '/courses/' + co.slug }), 'btn-outline') : ''}${btn('View Timetable', '/timetables-fees', 'btn-outline')}</div>
       ${!u ? h`<p class="small muted" style="margin-top:10px">You will be asked to sign in or create an account, then brought back to this course.</p>` : ''}</div></div></section>
     <section class="sec"><div class="wrap two-col" id="cd">
       <div class="prose" style="max-width:none">
@@ -191,7 +204,7 @@ R('/courses/:slug', (p, q, u) => {
         <h2>Fee and payment</h2>${!u ? h`<p>Prices are shown once you <a href="#/account/sign-in">sign in</a> or <a href="#/account/create">create a free account</a>.${co.trial ? ' A trial class is available for this course.' : ''}</p>` : h`<p>${money(classFee(primary))} per lesson. Choose to pay monthly (${money(periodTotal(primary, 'month').total)} for ${periodTotal(primary, 'month').lessons} lesson${periodTotal(primary, 'month').lessons === 1 ? '' : 's'}) or termly (${money(periodTotal(primary, 'term').total)} for ${periodTotal(primary, 'term').lessons} lesson${periodTotal(primary, 'term').lessons === 1 ? '' : 's'} left this term) when you enrol. Cancel or pause with notice – see our <a href="#/terms">terms</a>.${co.trial ? ' A trial class is available for this course.' : ''}</p>`}
         ${teacherOf(primary).publish ? h`<h2>Your teacher</h2><p>${t.name} · ${t.qual}</p>` : ''}
       </div>
-      <aside class="stack" style="position:sticky;top:96px"><div class="card"><h3>Class options</h3>${classes.map(cl => { const sc = schedText(cl), aa = avail(cl), ee = enrolLink(cl, u); return h`<div style="padding:14px 0;border-top:1px solid var(--line)"><div class="strong">${sc.days}</div><div class="small muted">${sc.time} (UK time)</div><div class="small" style="margin:6px 0">${startsLater(cl) ? 'Starts ' + fmtDate(cl.startDate) : cl.term}${u ? ' · ' + money(classFee(cl)) + ' / lesson' : ''}</div><div class="row">${chip(aa.label, aa.cls, aa.icon)}${ee ? h`<a class="btn ${aa.k === 'full' ? 'btn-outline-pink' : 'btn-pink'} btn-sm" href="#${ee.href}">${ee.label}</a>` : ''}</div></div>`; })}</div>
+      <aside class="stack" style="position:sticky;top:96px"><div class="card"><h3>Class options</h3>${u && u.role === 'parent' ? h`<div style="padding:0 0 14px"><div class="strong">One-to-one lessons</div><div class="small muted">Tick the times you are free and we arrange it · ${money(levelPrice(co.level, 'one2one'))} / lesson</div><button type="button" class="btn btn-outline btn-sm" style="margin-top:8px" data-act="courseOne" data-s="${co.subject}" data-b="${co.board || ''}">Request one-to-one</button></div>` : ''}${classes.map(cl => { const sc = schedText(cl), aa = avail(cl), ee = enrolLink(cl, u); return h`<div style="padding:14px 0;border-top:1px solid var(--line)"><div class="strong">${sc.days}</div><div class="small muted">${sc.time} (UK time)</div><div class="small" style="margin:6px 0">${startsLater(cl) ? 'Starts ' + fmtDate(cl.startDate) : cl.term}${u ? ' · ' + money(classFee(cl)) + ' / lesson' : ''}</div><div class="row">${chip(aa.label, aa.cls, aa.icon)}${ee ? h`<a class="btn ${aa.k === 'full' ? 'btn-outline-pink' : 'btn-pink'} btn-sm" href="#${ee.href}">${ee.label}</a>` : ''}</div></div>`; })}</div>
       <div class="card"><h3>Questions?</h3><p class="small muted">Not sure this is the right class? We are happy to help.</p><a class="btn btn-outline btn-block" href="#/contact">Contact MEA</a></div></aside></div></section>
     ${related.length ? h`<section class="sec soft"><div class="wrap"><h2 style="font-size:1.4rem">Related courses</h2><div class="grid g3">${related.map(c => h`<a class="card link" href="#/courses/${c.slug}"><div class="row">${subjIco(c.subject)}<div><div class="strong">${c.title}</div><div class="small muted">${levelName(c.level)}${u ? ' · ' + money(levelPrice(c.level, 'group')) + ' / lesson' : ''}</div></div></div></a>`)}</div></div></section>` : ''}
     ${stdCTA(u)}`

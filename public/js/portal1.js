@@ -204,7 +204,7 @@ Actions.basketClear = () => { UI.basket = []; render({ keepScroll: true }); };
 R('/my-mea/courses/one-to-one', (p, q, u) => {
   const ks = myKids(u); if (!ks.length) return { redirect: '/my-mea/children/add?first=1' };
   const kid = childById(kidSel(u, false)), lv = levelOfStage(kid.sys, kid.stage);
-  if (q.subject && subj(q.subject)) { if (!UI.o2o || UI.o2o.subject !== q.subject || UI.o2o.child !== kid.id) UI.o2o = { child: kid.id, subject: q.subject, board: '', slots: [] }; }
+  if (q.subject && subj(q.subject)) { if (!UI.o2o || UI.o2o.subject !== q.subject || UI.o2o.child !== kid.id) UI.o2o = { child: kid.id, subject: q.subject, board: '', slots: [] }; if (q.board) UI.o2o.board = q.board; }
   const O = UI.o2o; if (!O || !O.subject) return { redirect: '/my-mea/courses/find' };
   if (O.child !== kid.id) { O.child = kid.id; O.board = ''; }
   const s = subj(O.subject), boards = [...new Set(findClasses({ sys: kid.sys, level: lv, subject: O.subject }).map(c => clsCourse(c).board).filter(Boolean))];
