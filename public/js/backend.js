@@ -88,7 +88,7 @@ async function mirrorPricing() {
 async function mirrorO2O() {
   const r = await api('onetoone');
   if (!r.ok) return;
-  S.o2o = mergeLive(S.o2o || [], r.data.requests, x => ({ id: x.id, childId: x.childId, parentId: x.parentId, subject: x.subject, level: x.level, board: x.board || '', slots: x.slots || [], pricePerLesson: x.pricePerLesson, status: x.status, note: x.note || '', created: new Date(x.created).toISOString().slice(0, 10), live: true }));
+  S.o2o = mergeLive(S.o2o || [], r.data.requests, x => ({ id: x.id, childId: x.childId, parentId: x.parentId, subject: x.subject, level: x.level, board: x.board || '', slots: x.slots || [], pricePerLesson: x.pricePerLesson, status: x.status, note: x.note || '', classId: x.classId || '', enrolmentId: x.enrolmentId || '', teacherId: x.teacherId || '', created: new Date(x.created).toISOString().slice(0, 10), live: true }));
   save();
 }
 async function syncCatalog(user) {

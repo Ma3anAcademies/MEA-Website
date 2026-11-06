@@ -69,6 +69,13 @@ export default async (req) => {
       if (!body.childId || !body.classId) return err(400, "Missing child or class.");
       const { enrolment, error } = await adminEnrol(body.childId, body.classId, body.billingPeriod, opts);
       if (error) return err(400, error);
+      // Arranged one-to-one lessons: hold the seat and bill the first payment, same as
+      // an approved group request (becomes Active when the invoice is paid).
+      if (body.awaitPayment) {
+        const result = await acceptWithFirstPayment(enrolment);
+        if (result.error) return err(400, result.error);
+        return json({ enrolment: result.enrolment, invoice: result.invoice });
+      }
       return json({ enrolment });
     }
     if (payload.role !== "parent") return err(403, "Only a parent account can request enrolment.");

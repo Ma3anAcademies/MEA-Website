@@ -12,7 +12,7 @@ R('/timetables-fees', (p, q, u) => {
   const subs = SUBJECTS.filter(s => !isOff('subjects', s.id) && findClasses({ sys, subject: s.id }).length);
   const rows = groups.map(g => h`<tr class="day-row"><td colspan="6">${g.l.name} <span class="muted small" style="font-weight:400">· ages ${g.l.ages}</span></td></tr>${g.rows.map(cl => {
     const co = clsCourse(cl), a = avail(cl), sc = schedText(cl), el = enrolLink(cl, u);
-    return h`<tr>${td('Subject', h`<a href="#/courses/${co.slug}" class="strong">${co.title}</a>`)}${td('Level', levelName(co.level))}${td('Day', sc.days)}${td('Time (UK)', sc.time)}${td('Status', chip(a.label, a.cls, a.icon))}${td('', h`<a class="btn btn-outline btn-sm" href="#/courses/${co.slug}">View Course</a> ${el ? h`<a class="btn ${a.k === 'full' ? 'btn-outline-pink' : 'btn-pink'} btn-sm" href="#${el.href}">${el.label}</a>` : ''}`, 'act')}</tr>`;
+    return h`<tr>${td('Subject', h`<a href="#/courses/${co.slug}" class="strong">${co.title}</a>`)}${td('Level', levelName(co.level))}${td('Day', sc.days)}${td('Time (UK)', sc.time)}${td('Status', chip(a.label, a.cls, a.icon))}${td('', h`<a class="btn btn-outline btn-sm" href="#/courses/${co.slug}">View Course</a> ${enrolBtn(cl, u, el, a)}`, 'act')}</tr>`;
   })}`);
   return {
     title: 'Timetable', body: h`${banner({ title: 'Timetable', sub: 'See available classes and times.', img: IMG.timetable, alt: 'A student in a headscarf and headphones writing notes at her laptop' })}

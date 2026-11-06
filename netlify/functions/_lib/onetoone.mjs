@@ -44,6 +44,7 @@ export async function updateO2O(id, patch) {
   if (!existing) return { error: "That request wasn't found." };
   const updated = { ...existing };
   if (patch.status !== undefined) { if (!O2O_STATUSES.includes(patch.status)) return { error: "Unknown status." }; updated.status = patch.status; }
+  for (const k of ["classId", "enrolmentId", "teacherId"]) if (patch[k] !== undefined) updated[k] = String(patch[k]).slice(0, 80);
   if (patch.note !== undefined) updated.note = String(patch.note).slice(0, 500);
   await store().setJSON(`o:${id}`, updated);
   return { request: updated };

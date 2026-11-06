@@ -38,7 +38,7 @@ export default async (req) => {
       return json({ request });
     }
     if (payload.role !== "admin") return err(403, "Only admin can manage requests.");
-    const { request, error } = await updateO2O(existing.id, { status: body.status, note: body.note });
+    const { request, error } = await updateO2O(existing.id, { status: body.status, note: body.note, classId: body.classId, enrolmentId: body.enrolmentId, teacherId: body.teacherId });
     if (error) return err(400, error);
     return json({ request });
   }

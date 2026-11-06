@@ -30,8 +30,63 @@ R('/admin/enrolments', (p, q, u) => {
 function o2oAdminPanel() {
   const rs = (S.o2o || []).filter(x => childById(x.childId)).sort((a, b) => (a.status === 'Requested' ? 0 : 1) - (b.status === 'Requested' ? 0 : 1) || (b.created || '').localeCompare(a.created || '')).slice(0, 30);
   if (!rs.length) return '';
-  return h`<section class="panel" style="margin-bottom:18px"><h2><span class="l">${ic('user')}One-to-one requests</span></h2><div class="list">${rs.map(x => { const k = childById(x.childId), par = userById(x.parentId); return h`<div class="li"><div class="grow"><div class="t">${k.first} ${k.last} · ${subj(x.subject).name} (${levelName(x.level)}${x.board ? ', ' + x.board : ''})</div><div class="s">${pname(k.parentId)}${par && par.phone ? ' · ' + par.phone : ''} · ${money(x.pricePerLesson)}/lesson</div><div class="s">Free: ${o2oSummary(x.slots)}</div>${x.note ? h`<div class="s">Note: ${x.note}</div>` : ''}</div>${chip(x.status, x.status === 'Arranged' ? 'chip-green' : x.status === 'Requested' ? 'chip-yellow' : 'chip-grey')}${x.status === 'Requested' ? h`<button class="btn btn-primary btn-sm" data-act="o2oSet" data-id="${x.id}" data-s="Arranged">Mark arranged</button><button class="btn btn-danger btn-sm" data-act="o2oSet" data-id="${x.id}" data-s="Declined">Decline</button>` : ''}</div>`; })}</div></section>`;
+  return h`<section class="panel" style="margin-bottom:18px"><h2><span class="l">${ic('user')}One-to-one requests</span></h2><div class="list">${rs.map(x => { const k = childById(x.childId), par = userById(x.parentId); return h`<div class="li"><div class="grow"><div class="t">${k.first} ${k.last} · ${subj(x.subject).name} (${levelName(x.level)}${x.board ? ', ' + x.board : ''})</div><div class="s">${pname(k.parentId)}${par && par.phone ? ' · ' + par.phone : ''} · ${money(x.pricePerLesson)}/lesson</div><div class="s">Free: ${o2oSummary(x.slots)}</div>${x.status === 'Arranged' && x.classId && classById(x.classId) ? h`<div class="s"><strong>${pname(classById(x.classId).teacherId)}</strong> · ${schedText(classById(x.classId)).short}</div>` : ''}${x.note ? h`<div class="s">Note: ${x.note}</div>` : ''}</div>${chip(x.status, x.status === 'Arranged' ? 'chip-green' : x.status === 'Requested' ? 'chip-yellow' : 'chip-grey')}${x.status === 'Requested' ? h`<button class="btn btn-primary btn-sm" data-act="o2oArrange" data-id="${x.id}">Arrange lesson</button><button class="btn btn-danger btn-sm" data-act="o2oSet" data-id="${x.id}" data-s="Declined">Decline</button>` : ''}</div>`; })}</div></section>`;
 }
+/* Arranging a one-to-one request turns it into a real lesson: a private class
+   (capacity 1) with the chosen teacher and slot, and an enrolment for the child
+   that follows the normal pay-first rule. Teacher, timetables and invoices then
+   all work exactly as they do for group classes. */
+const hh = n => String(n).padStart(2, '0') + ':00';
+function nextOnOrAfter(iso, dow) { let d = iso; for (let i = 0; i < 7 && new Date(d + 'T12:00:00Z').getUTCDay() !== dow; i++) d = isoAdd(d, 1); return d; }
+Actions.o2oArrange = t => {
+  const x = (S.o2o || []).find(r => r.id === t.dataset.id), k = x && childById(x.childId); if (!x || !k) return;
+  const allT = S.users.filter(u => u.role === 'teacher'), teachers = LIVE_BACKEND && allT.some(u => u.live) ? allT.filter(u => u.live) : allT, mine = tt => (String(tt.subjects || '').toLowerCase().includes(subj(x.subject).name.toLowerCase().slice(0, 5)) ? 0 : 1);
+  teachers.sort((a, b) => mine(a) - mine(b) || a.name.localeCompare(b.name));
+  openModal({ title: `Arrange ${subj(x.subject).name} for ${k.first}`, body: h`<p class="small muted">${pname(k.parentId)} is free: ${o2oSummary(x.slots)}. Pick a teacher and one of these times; it becomes a normal lesson and a first-payment invoice is sent.</p>
+  <form data-form="o2oArrangeGo" data-id="${x.id}" novalidate><div class="form-grid">
+    ${fld({ name: 'teacher', label: 'Teacher', type: 'select', req: 1, options: teachers.map(tt => [tt.id, tt.name + (mine(tt) === 0 ? ' (teaches this subject)' : '')]), full: 1 })}
+    ${fld({ name: 'slot', label: 'Lesson time (weekly)', type: 'select', req: 1, options: x.slots.map(s => { const [d, hr] = s.split('-').map(Number); return [s, `${DAYS[d]} ${o2oHourLabel(hr)}`]; }), full: 1 })}
+    ${fld({ name: 'from', label: 'First lesson on or after', type: 'date', req: 1, value: isoAdd(todayISO(), 1) })}${fld({ name: 'until', label: 'Last lesson on or before', type: 'date', req: 1, value: S.term.end > todayISO() ? S.term.end : isoAdd(todayISO(), 84) })}
+    ${fld({ name: 'fee', label: 'Fee (£/lesson)', type: 'number', req: 1, value: x.pricePerLesson != null ? x.pricePerLesson : levelPrice(x.level, 'one2one'), attrs: 'min="0" step="0.5"' })}${fld({ name: 'meeting', label: 'Meeting link (optional)', type: 'url', ph: 'https://…' })}
+    ${fld({ name: 'note', label: 'Note for the parent (optional)', type: 'textarea', rows: 2, full: 1 })}</div>
+    <div class="row" style="margin-top:14px;justify-content:flex-end"><button type="button" class="btn btn-outline" data-act="closeModal">Cancel</button><button class="btn btn-primary" type="submit">Arrange lesson</button></div></form>` });
+};
+Forms.o2oArrangeGo = async (f, v) => {
+  const x = (S.o2o || []).find(r => r.id === f.dataset.id), k = x && childById(x.childId); if (!x || !k) return;
+  const e = {}; if (!v.teacher) e.teacher = 'Choose a teacher.'; if (!v.slot) e.slot = 'Choose a time.'; if (!v.from) e.from = 'Choose a start date.'; if (!v.until || v.until < v.from) e.until = 'Choose an end date after the start.'; if (v.fee === '' || +v.fee < 0) e.fee = 'Enter a fee.';
+  if (v.meeting && !/^https:\/\//i.test(v.meeting)) e.meeting = 'Enter a full link starting with https://'; if (!showErrors(f, e)) return;
+  const [d, hr] = v.slot.split('-').map(Number), start = hh(hr), end = hh(hr + 1);
+  const clash = S.classes.find(c => c.teacherId === v.teacher && c.status === 'Running' && (c.days || []).some(dd => dd.d === d && dd.start < end && dd.end > start) && c.startDate <= v.until && c.endDate >= v.from);
+  if (clash) { toast(`${pname(v.teacher)} already teaches ${clsCourse(clash).title} at that time. Choose another teacher or time.`); return; }
+  const lv = levelInfo(x.level), sys = lv ? lv.sys : k.sys;
+  // A hidden course per subject/level/board holds the lesson, so it never appears on the public site.
+  let co = S.courses.find(c => !c.active && c.title.startsWith('One-to-one') && c.subject === x.subject && c.level === x.level && (c.board || '') === (x.board || ''));
+  if (!co) {
+    const title = `One-to-one ${subj(x.subject).name} (${levelName(x.level)}${x.board ? ', ' + x.board : ''})`;
+    const row = { id: uid('c'), slug: slugify(title) + '-' + Math.random().toString(36).slice(2, 5), title, sys, level: x.level, subject: x.subject, board: x.board || '', tier: '', desc: 'Private one-to-one lessons.', audience: `Students in ${lv ? lv.years.join(', ') : ''}.`, topics: topicsFor(x.subject, x.level), fee: +v.fee, trial: false, active: false, needs: 'A device with a camera and microphone, a stable internet connection, pen and paper.' };
+    if (LIVE_BACKEND) { const r = await api('courses', { method: 'POST', body: row }); if (!r.ok) { toast((r.data && r.data.error) || 'Could not create the lesson — please try again.'); return; } row.id = r.data.course.id; row.slug = r.data.course.slug; row.live = true; }
+    S.courses.push(row); co = row;
+  }
+  const first = nextOnOrAfter(v.from, d);
+  if (first > v.until) { toast('There is no lesson on that day between those dates.'); return; }
+  const cls = { id: uid('cl'), courseId: co.id, teacherId: v.teacher, days: [{ d, start, end }], term: S.term.name, startDate: first, endDate: v.until, capacity: 1, meetingUrl: v.meeting || '', feeOverride: +v.fee, enrolOpen: false, status: 'Running' };
+  if (LIVE_BACKEND) { const r = await api('classes', { method: 'POST', body: cls }); if (!r.ok) { toast((r.data && r.data.error) || 'Could not create the lesson — please try again.'); return; } cls.id = r.data.class.id; cls.live = true; }
+  S.classes.push(cls);
+  let enId = uid('en'), status = 'Active', invoice = false;
+  if (LIVE_BACKEND) {
+    const r = await api('enrolments', { method: 'POST', body: { childId: k.id, classId: cls.id, billingPeriod: 'month', awaitPayment: true } });
+    if (!r.ok) { S.classes = S.classes.filter(c => c.id !== cls.id); await api('classes', { method: 'PATCH', body: { id: cls.id, status: 'Ended' } }); toast((r.data && r.data.error) || 'Could not enrol the child — please try again.'); return; }
+    enId = r.data.enrolment.id; status = r.data.enrolment.status; invoice = !!r.data.invoice;
+  }
+  S.enrolments.push({ id: enId, childId: k.id, classId: cls.id, status, billingPeriod: 'month', created: todayISO(), live: LIVE_BACKEND });
+  const note = (v.note || '').trim() || `${pname(v.teacher)}, ${DAYS[d]} ${o2oHourLabel(hr)} from ${fmtDate(first, 'dmy')}`;
+  if (LIVE_BACKEND && x.live) { const r = await api('onetoone', { method: 'PATCH', body: { id: x.id, status: 'Arranged', note, classId: cls.id, enrolmentId: enId, teacherId: v.teacher } }); if (!r.ok) toast('Lesson created, but the request could not be marked arranged. Refresh and check.'); }
+  Object.assign(x, { status: 'Arranged', note, classId: cls.id, enrolmentId: enId, teacherId: v.teacher });
+  addNotif(k.parentId, 'Enrolments', k.id, `One-to-one ${subj(x.subject).name} for ${k.first} is arranged: ${note}.${status === 'Awaiting Payment' ? ' Pay the first invoice to confirm it.' : ''}`, status === 'Awaiting Payment' ? '/my-mea/payments' : '/my-mea/courses');
+  save(); closeModal();
+  if (invoice) await mirrorAllInvoices(me());
+  toast(status === 'Awaiting Payment' ? 'Lesson arranged. First-payment invoice sent to the parent.' : 'Lesson arranged.'); render({ keepScroll: true });
+};
 Actions.o2oSet = t => {
   const arr = t.dataset.s === 'Arranged';
   openModal({ title: arr ? 'Mark as arranged' : 'Decline request', body: h`<form data-form="o2oSetGo" data-id="${t.dataset.id}" data-s="${t.dataset.s}" novalidate>${fld({ name: 'note', label: arr ? 'Note for the parent (optional)' : 'Reason (optional)', type: 'textarea', rows: 3, value: '', hint: arr ? 'e.g. the agreed day and time.' : '', full: 1 })}<div class="row" style="margin-top:14px;justify-content:flex-end"><button type="button" class="btn btn-outline" data-act="closeModal">Cancel</button><button class="btn btn-primary" type="submit">Save</button></div></form>` });

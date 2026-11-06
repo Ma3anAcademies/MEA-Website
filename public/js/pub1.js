@@ -21,6 +21,14 @@ function enrolLink(cl, u) {
   if (u.role === 'parent') { const kq = UI.kid && childById(UI.kid) && childById(UI.kid).parentId === u.id ? qs({ child: UI.kid }) : ''; return { href: (full ? '/my-mea/courses/waitlist/' : '/my-mea/courses/enrol/') + cl.id + kq, label }; }
   return null;
 }
+/* Every Enrol / Join Waitlist button a parent can press goes through the same
+   group-or-one-to-one chooser; everyone else gets the plain link. */
+function enrolBtn(cl, u, el, a, extra) {
+  if (!el) return '';
+  const cls = `btn ${a.k === 'full' ? 'btn-outline-pink' : 'btn-pink'} btn-sm`;
+  if (u && u.role === 'parent') return h`<button type="button" class="${cls}" data-act="courseEnrol" data-slug="${clsCourse(cl).slug}">${el.label}</button>`;
+  return h`<a class="${cls}" href="#${el.href}">${el.label}</a>`;
+}
 function classCard(cl, u, year, levelLabel, opts) {
   const co = clsCourse(cl), a = avail(cl), sc = schedText(cl), el = enrolLink(cl, u);
   // When shown as a per-year row (course finder), the year is the headline and
@@ -37,7 +45,7 @@ function classCard(cl, u, year, levelLabel, opts) {
   <h3><a href="#/courses/${co.slug}">${mainTitle}</a></h3><div class="small muted">${subLine}</div>
   <div class="meta"><div>${ic('calendar')}<span>${sc.days}</span></div><div>${ic('clock')}<span>${sc.time} (UK time)</span></div><div>${ic('laptop')}<span>Live online classes</span></div><div>${ic('layers')}<span>${startsLater(cl) ? 'Starts ' + fmtDate(cl.startDate) : cl.term}</span></div></div>
   <div class="foot">${me() ? h`<div class="fee">${money(classFee(cl))} <small>/ lesson</small></div>` : h`<div class="small muted">Sign in to see prices</div>`}${co.trial ? chip('Trial class available', 'chip-purple', 'sparkles') : ''}</div>
-  <div class="btns"><a class="btn btn-outline btn-sm" href="#/courses/${co.slug}">View Course</a>${selectBtn}${el && me() && me().role === 'parent' && !(opts && opts.select) ? h`<button type="button" class="btn ${a.k === 'full' ? 'btn-outline-pink' : 'btn-pink'} btn-sm" data-act="courseEnrol" data-slug="${co.slug}">${el.label}</button>` : el ? h`<a class="btn ${a.k === 'full' ? 'btn-outline-pink' : 'btn-pink'} btn-sm" href="#${el.href}">${el.label}</a>` : ''}</div></article>`;
+  <div class="btns"><a class="btn btn-outline btn-sm" href="#/courses/${co.slug}">View Course</a>${selectBtn}${enrolBtn(cl, u, el, a)}</div></article>`;
 }
 
 /* ---------------- HOME ---------------- */
@@ -204,7 +212,7 @@ R('/courses/:slug', (p, q, u) => {
         <h2>Fee and payment</h2>${!u ? h`<p>Prices are shown once you <a href="#/account/sign-in">sign in</a> or <a href="#/account/create">create a free account</a>.${co.trial ? ' A trial class is available for this course.' : ''}</p>` : h`<p>${money(classFee(primary))} per lesson. Choose to pay monthly (${money(periodTotal(primary, 'month').total)} for ${periodTotal(primary, 'month').lessons} lesson${periodTotal(primary, 'month').lessons === 1 ? '' : 's'}) or termly (${money(periodTotal(primary, 'term').total)} for ${periodTotal(primary, 'term').lessons} lesson${periodTotal(primary, 'term').lessons === 1 ? '' : 's'} left this term) when you enrol. Cancel or pause with notice – see our <a href="#/terms">terms</a>.${co.trial ? ' A trial class is available for this course.' : ''}</p>`}
         ${teacherOf(primary).publish ? h`<h2>Your teacher</h2><p>${t.name} · ${t.qual}</p>` : ''}
       </div>
-      <aside class="stack" style="position:sticky;top:96px"><div class="card"><h3>Class options</h3>${u && u.role === 'parent' ? h`<div style="padding:0 0 14px"><div class="strong">One-to-one lessons</div><div class="small muted">Tick the times you are free and we arrange it · ${money(levelPrice(co.level, 'one2one'))} / lesson</div><button type="button" class="btn btn-outline btn-sm" style="margin-top:8px" data-act="courseOne" data-s="${co.subject}" data-b="${co.board || ''}">Request one-to-one</button></div>` : ''}${classes.map(cl => { const sc = schedText(cl), aa = avail(cl), ee = enrolLink(cl, u); return h`<div style="padding:14px 0;border-top:1px solid var(--line)"><div class="strong">${sc.days}</div><div class="small muted">${sc.time} (UK time)</div><div class="small" style="margin:6px 0">${startsLater(cl) ? 'Starts ' + fmtDate(cl.startDate) : cl.term}${u ? ' · ' + money(classFee(cl)) + ' / lesson' : ''}</div><div class="row">${chip(aa.label, aa.cls, aa.icon)}${ee ? h`<a class="btn ${aa.k === 'full' ? 'btn-outline-pink' : 'btn-pink'} btn-sm" href="#${ee.href}">${ee.label}</a>` : ''}</div></div>`; })}</div>
+      <aside class="stack" style="position:sticky;top:96px"><div class="card"><h3>Class options</h3>${u && u.role === 'parent' ? h`<div style="padding:0 0 14px"><div class="strong">One-to-one lessons</div><div class="small muted">Tick the times you are free and we arrange it · ${money(levelPrice(co.level, 'one2one'))} / lesson</div><button type="button" class="btn btn-outline btn-sm" style="margin-top:8px" data-act="courseOne" data-s="${co.subject}" data-b="${co.board || ''}">Request one-to-one</button></div>` : ''}${classes.map(cl => { const sc = schedText(cl), aa = avail(cl), ee = enrolLink(cl, u); return h`<div style="padding:14px 0;border-top:1px solid var(--line)"><div class="strong">${sc.days}</div><div class="small muted">${sc.time} (UK time)</div><div class="small" style="margin:6px 0">${startsLater(cl) ? 'Starts ' + fmtDate(cl.startDate) : cl.term}${u ? ' · ' + money(classFee(cl)) + ' / lesson' : ''}</div><div class="row">${chip(aa.label, aa.cls, aa.icon)}${enrolBtn(cl, u, ee, aa)}</div></div>`; })}</div>
       <div class="card"><h3>Questions?</h3><p class="small muted">Not sure this is the right class? We are happy to help.</p><a class="btn btn-outline btn-block" href="#/contact">Contact MEA</a></div></aside></div></section>
     ${related.length ? h`<section class="sec soft"><div class="wrap"><h2 style="font-size:1.4rem">Related courses</h2><div class="grid g3">${related.map(c => h`<a class="card link" href="#/courses/${c.slug}"><div class="row">${subjIco(c.subject)}<div><div class="strong">${c.title}</div><div class="small muted">${levelName(c.level)}${u ? ' · ' + money(levelPrice(c.level, 'group')) + ' / lesson' : ''}</div></div></div></a>`)}</div></div></section>` : ''}
     ${stdCTA(u)}`
