@@ -1,0 +1,97 @@
+[
+ {
+  "cat": "About MEA",
+  "q": "What is MEA?",
+  "a": "Ma3an Education Academies (MEA) is an online tuition and academic support provider for students across the UK. Live classes are taught by qualified, experienced teachers and are aligned to the UK curriculum. “Ma3an” means “Together”."
+ },
+ {
+  "cat": "Courses & levels",
+  "q": "Which year groups and levels does MEA teach?",
+  "a": "MEA supports Primary, KS3, GCSE and A-Level in England, Wales and Northern Ireland, and Primary, S1–S3, National 5, Higher and Advanced Higher in Scotland. Use the Course Finder to see what is currently running."
+ },
+ {
+  "cat": "Courses & levels",
+  "q": "Does MEA support different exam boards?",
+  "a": "Yes. GCSE and A-Level classes show their exam board (for example AQA, Edexcel or OCR) and Scottish courses follow SQA. The exam board is shown on every course card and course page."
+ },
+ {
+  "cat": "Courses & levels",
+  "q": "How do I know which class is right for my child?",
+  "a": "Choose your education system, then your child’s school year and subject in the Course Finder. If you are unsure, read our level guide or contact us and we will recommend a class."
+ },
+ {
+  "cat": "Courses & levels",
+  "q": "Do you offer one-to-one tutoring?",
+  "a": "One-to-one support is available for selected subjects. Please contact us with your child’s year, subject and goals and we will confirm availability and fees."
+ },
+ {
+  "cat": "Courses & levels",
+  "q": "What happens when a class is full?",
+  "a": "When a class reaches capacity, the Enrol button changes to Join Waitlist. We will notify you if a place becomes available."
+ },
+ {
+  "cat": "England / Scotland routes",
+  "q": "What is the difference between GCSEs and National 5s?",
+  "a": "GCSEs are taken in England, Wales and Northern Ireland at around age 16. National 5s are the equivalent stage in Scotland, usually taken in S4 and awarded by the SQA. Read our guides in Resources for more detail."
+ },
+ {
+  "cat": "Registration & accounts",
+  "q": "How do I register my child at MEA?",
+  "a": "Create a parent account, verify your email, then add your child’s details and choose a class. You will be shown a confirmation summary before you submit an enrolment request."
+ },
+ {
+  "cat": "Registration & accounts",
+  "q": "Is there a free trial available?",
+  "a": "Some courses offer an introductory session. Look for the “Trial class available” label on the course page. If it is not shown, please contact us to ask."
+ },
+ {
+  "cat": "Adding children",
+  "q": "Can I add more than one child to my account?",
+  "a": "Yes. One parent account can manage several children. Each child has their own profile, courses and timetable, and you can switch between them at any time."
+ },
+ {
+  "cat": "Adding children",
+  "q": "How do I enrol a second child?",
+  "a": "Sign in to My MEA, go to My Children and choose Add Child. Your contact details are reused, so you only enter the child’s information."
+ },
+ {
+  "cat": "Timetables",
+  "q": "Can I change my child’s class or timetable?",
+  "a": "Please contact support from your My MEA account and tell us which class you would like to move to. We will confirm whether a place is available."
+ },
+ {
+  "cat": "Timetables",
+  "q": "How will I be told if a class time changes?",
+  "a": "Timetable changes are updated centrally in My MEA and you will receive an in-app notification and an email."
+ },
+ {
+  "cat": "Fees & payments",
+  "q": "How are fees charged?",
+  "a": "Fees are shown on each course page. Payment timing and the cancellation summary are explained there, with a link to the full terms."
+ },
+ {
+  "cat": "Lessons & homework",
+  "q": "Where can I find homework and lesson resources?",
+  "a": "Sign in to My MEA, choose your child and open the Learning Hub. Resources and homework are organised by course and week, so you never need to search through folders."
+ },
+ {
+  "cat": "Lessons & homework",
+  "q": "How are classes delivered?",
+  "a": "Classes are delivered live online. Students join from the timetable in My MEA and take part in real time with their teacher."
+ },
+ {
+  "cat": "Technical access",
+  "q": "How do I reset my password?",
+  "a": "Choose “Forgot password?” on the Sign In page, enter your email and follow the link we send you."
+ },
+ {
+  "cat": "Absence & missed classes",
+  "q": "What happens if my child misses a lesson?",
+  "a": "Lesson resources and homework stay available in the Learning Hub. Please message the team through My MEA if you would like advice on catching up."
+ },
+ {
+  "cat": "Contact & support",
+  "q": "Who can I speak to if I am worried about my child?",
+  "a": "Please contact the MEA team straight away using the Contact page or Help & Support in My MEA. You can also read our safeguarding information from the footer of any page."
+ }
+]
