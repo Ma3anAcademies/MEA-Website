@@ -30,16 +30,20 @@ async function askAnthropic(key, system, msgs) {
   return (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
 }
 
-async function askGemini(key, system, msgs) {
-  const model = process.env.GEMINI_MODEL || "gemini-3.8-flash";
-  const base = process.env.GEMINI_API_URL || `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+// Gemini models to try in order. A busy or unavailable model (503/429/timeouts) moves on to the next,
+// so one overloaded model doesn't take the chat down. GEMINI_MODEL, if set, is tried first.
+const geminiModels = () => [...new Set([process.env.GEMINI_MODEL, "gemini-3.8-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite"].filter(Boolean))];
+
+async function geminiOnce(key, model, system, msgs) {
+  const base = process.env.GEMINI_API_BASE || "https://generativelanguage.googleapis.com/v1beta/models";
+  const url = `${base}/${encodeURIComponent(model)}:generateContent`;
   // Different Gemini generations name the "think less" setting differently, so try the
   // known forms in turn (a 400 means that form isn't supported by this model).
   const thinking = [{ thinkingConfig: { thinkingLevel: "low" } }, { thinkingConfig: { thinkingBudget: 0 } }, {}];
   let res;
   for (const extra of thinking) {
-    res = await fetch(base, {
-      method: "POST", signal: AbortSignal.timeout(20000),
+    res = await fetch(url, {
+      method: "POST", signal: AbortSignal.timeout(7000),
       headers: { "content-type": "application/json", "x-goog-api-key": key },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
@@ -49,10 +53,25 @@ async function askGemini(key, system, msgs) {
     });
     if (res.status !== 400) break;
   }
-  if (!res.ok) throw new Error(`gemini ${res.status} ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) { const e = new Error(`gemini ${model} ${res.status} ${(await res.text()).slice(0, 160)}`); e.status = res.status; throw e; }
   const data = await res.json();
   const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
-  return parts.filter((p) => !p.thought).map((p) => p.text || "").join("").trim();
+  const text = parts.filter((p) => !p.thought).map((p) => p.text || "").join("").trim();
+  if (!text) throw new Error(`gemini ${model} returned no text`);
+  return text;
+}
+
+async function askGemini(key, system, msgs) {
+  const started = Date.now(); let lastErr;
+  for (const model of geminiModels()) {
+    if (Date.now() - started > 16000) break; // stay inside the function time limit
+    try { return await geminiOnce(key, model, system, msgs); }
+    catch (e) {
+      lastErr = e; console.error("chat model failed:", e && e.message);
+      if (e && (e.status === 401 || e.status === 403)) throw e; // key problem: other models won't help
+    }
+  }
+  throw lastErr || new Error("gemini unavailable");
 }
 
 export default async (req) => {
