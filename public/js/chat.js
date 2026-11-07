@@ -87,7 +87,7 @@
     let reply = null;
     if (typeof LIVE_BACKEND === 'undefined' || LIVE_BACKEND) {
       try {
-        const r = await api('chat', { method: 'POST', body: { messages: msgs.slice(-8) } });
+        const r = await Promise.race([api('chat', { method: 'POST', body: { messages: msgs.slice(-8) } }), new Promise(res => setTimeout(() => res({ ok: false, data: {}, timeout: true }), 16000))]);
         if (r.ok && r.data && r.data.reply) reply = r.data.reply;
         else if (r.data && r.status === 429) reply = r.data.error;
       } catch (e) { }
