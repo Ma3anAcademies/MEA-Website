@@ -30,9 +30,9 @@ async function askAnthropic(key, system, msgs) {
   return (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
 }
 
-// Gemini models to try in order. A busy or unavailable model (503/429/timeouts) moves on to the next,
+// Gemini models to try in order (fastest first). A busy or unavailable model (503/429/timeouts) moves on to the next,
 // so one overloaded model doesn't take the chat down. GEMINI_MODEL, if set, is tried first.
-const geminiModels = () => [...new Set([process.env.GEMINI_MODEL, "gemini-3.8-flash", "gemini-flash-latest", "gemini-flash-lite-latest"].filter(Boolean))];
+const geminiModels = () => [...new Set([process.env.GEMINI_MODEL, "gemini-flash-lite-latest", "gemini-flash-latest", "gemini-3.8-flash"].filter(Boolean))];
 
 async function geminiOnce(key, model, system, msgs, timeoutMs) {
   const base = process.env.GEMINI_API_BASE || "https://generativelanguage.googleapis.com/v1beta/models";
@@ -66,8 +66,9 @@ async function askGemini(key, system, msgs) {
   const models = geminiModels();
   for (let i = 0; i < models.length; i++) {
     const model = models[i];
-    if (Date.now() - started > 14000) break; // stay inside the function time limit
-    try { return await geminiOnce(key, model, system, msgs, i === 0 ? 12000 : 7000); }
+    const left = 18000 - (Date.now() - started); // total budget, so visitors never wait long
+    if (left < 2500) break;
+    try { return await geminiOnce(key, model, system, msgs, Math.min(6000, left)); }
     catch (e) {
       lastErr = e; console.error("chat model failed:", e && e.message);
       if (e && (e.status === 401 || e.status === 403)) throw e; // key problem: other models won't help
