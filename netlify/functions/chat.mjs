@@ -32,9 +32,9 @@ async function askAnthropic(key, system, msgs) {
 
 // Gemini models to try in order. A busy or unavailable model (503/429/timeouts) moves on to the next,
 // so one overloaded model doesn't take the chat down. GEMINI_MODEL, if set, is tried first.
-const geminiModels = () => [...new Set([process.env.GEMINI_MODEL, "gemini-3.8-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite"].filter(Boolean))];
+const geminiModels = () => [...new Set([process.env.GEMINI_MODEL, "gemini-3.8-flash", "gemini-flash-latest", "gemini-flash-lite-latest"].filter(Boolean))];
 
-async function geminiOnce(key, model, system, msgs) {
+async function geminiOnce(key, model, system, msgs, timeoutMs) {
   const base = process.env.GEMINI_API_BASE || "https://generativelanguage.googleapis.com/v1beta/models";
   const url = `${base}/${encodeURIComponent(model)}:generateContent`;
   // Different Gemini generations name the "think less" setting differently, so try the
@@ -43,7 +43,7 @@ async function geminiOnce(key, model, system, msgs) {
   let res;
   for (const extra of thinking) {
     res = await fetch(url, {
-      method: "POST", signal: AbortSignal.timeout(7000),
+      method: "POST", signal: AbortSignal.timeout(timeoutMs),
       headers: { "content-type": "application/json", "x-goog-api-key": key },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
@@ -63,9 +63,11 @@ async function geminiOnce(key, model, system, msgs) {
 
 async function askGemini(key, system, msgs) {
   const started = Date.now(); let lastErr;
-  for (const model of geminiModels()) {
-    if (Date.now() - started > 16000) break; // stay inside the function time limit
-    try { return await geminiOnce(key, model, system, msgs); }
+  const models = geminiModels();
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
+    if (Date.now() - started > 14000) break; // stay inside the function time limit
+    try { return await geminiOnce(key, model, system, msgs, i === 0 ? 12000 : 7000); }
     catch (e) {
       lastErr = e; console.error("chat model failed:", e && e.message);
       if (e && (e.status === 401 || e.status === 403)) throw e; // key problem: other models won't help
