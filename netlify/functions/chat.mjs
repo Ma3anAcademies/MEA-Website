@@ -31,20 +31,28 @@ async function askAnthropic(key, system, msgs) {
 }
 
 async function askGemini(key, system, msgs) {
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-3.8-flash";
   const base = process.env.GEMINI_API_URL || `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-  const build = (thinkingOff) => JSON.stringify({
-    systemInstruction: { parts: [{ text: system }] },
-    contents: msgs.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
-    generationConfig: { maxOutputTokens: 600, temperature: 0.3, ...(thinkingOff ? { thinkingConfig: { thinkingBudget: 0 } } : {}) },
-  });
-  const call = (thinkingOff) => fetch(base, { method: "POST", signal: AbortSignal.timeout(20000), headers: { "content-type": "application/json", "x-goog-api-key": key }, body: build(thinkingOff) });
-  let res = await call(true);
-  if (res.status === 400) res = await call(false); // models without a thinking setting
+  // Different Gemini generations name the "think less" setting differently, so try the
+  // known forms in turn (a 400 means that form isn't supported by this model).
+  const thinking = [{ thinkingConfig: { thinkingLevel: "low" } }, { thinkingConfig: { thinkingBudget: 0 } }, {}];
+  let res;
+  for (const extra of thinking) {
+    res = await fetch(base, {
+      method: "POST", signal: AbortSignal.timeout(20000),
+      headers: { "content-type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: msgs.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
+        generationConfig: { maxOutputTokens: 1200, temperature: 0.3, ...extra },
+      }),
+    });
+    if (res.status !== 400) break;
+  }
   if (!res.ok) throw new Error(`gemini ${res.status} ${(await res.text()).slice(0, 200)}`);
   const data = await res.json();
   const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
-  return parts.map((p) => p.text || "").join("").trim();
+  return parts.filter((p) => !p.thought).map((p) => p.text || "").join("").trim();
 }
 
 export default async (req) => {
