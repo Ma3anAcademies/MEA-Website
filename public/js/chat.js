@@ -102,7 +102,7 @@
   function mount() {
     root = document.createElement('div'); root.className = 'cb'; root.hidden = !visible();
     root.innerHTML = `<div class="cb-panel" role="dialog" aria-label="MEA help assistant" hidden>
-      <div class="cb-head"><div><strong>MEA assistant</strong><small>Automated answers · usually instant</small></div><button type="button" class="cb-x" aria-label="Close chat">×</button></div>
+      <div class="cb-head"><div><strong>MEA assistant</strong><small>Automated answers · please don’t share personal details</small></div><button type="button" class="cb-x" aria-label="Close chat">×</button></div>
       <div class="cb-log" aria-live="polite"></div>
       <form class="cb-form" autocomplete="off"><input class="cb-in" type="text" maxlength="500" placeholder="Type your question…" aria-label="Your question"><button class="cb-send" type="submit">Send</button></form>
       <div class="cb-foot"><a href="#/contact" data-chat-link>Talk to a person</a><a class="cb-wa" target="_blank" rel="noopener" hidden>WhatsApp us</a><button type="button" class="cb-clear">Clear chat</button></div></div>
