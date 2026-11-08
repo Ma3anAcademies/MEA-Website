@@ -47,3 +47,14 @@ export async function sendPasswordResetEmail(to, name, link) {
       <p style="color:#5A6E85;font-size:13px">This link works for 60 minutes. If you didn't request this, you can ignore this email — your password won't change.</p>`),
   });
 }
+
+export async function sendNewMessageEmail(to, name, fromName, link) {
+  return send({
+    to, subject: "You have a new message on MEA",
+    html: wrap("New message", `
+      <p>Hi ${name},</p>
+      <p>You have a new message from <strong>${fromName}</strong> in My MEA.</p>
+      <p style="margin:24px 0"><a href="${link}" style="background:#0672AB;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Read the message</a></p>
+      <p style="color:#5A6E85;font-size:13px">For privacy, the message itself is only shown after you sign in. You can turn these emails off in Settings &gt; Notifications.</p>`),
+  });
+}

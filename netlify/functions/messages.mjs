@@ -1,5 +1,6 @@
 import { readToken } from "./_lib/auth.mjs";
 import { listThreadsFor, getThread, createThread, listMessages, addMessage, markRead } from "./_lib/messages.mjs";
+import { notifyNewMessage } from "./_lib/notify.mjs";
 import { json, err } from "./_lib/http.mjs";
 
 export default async (req) => {
@@ -29,6 +30,7 @@ export default async (req) => {
       if (!th || (isParent ? th.parentId !== payload.id : th.staffId !== payload.id)) return err(403, "Not your conversation.");
       const { message, error } = await addMessage(body.threadId, payload.id, body.message, isParent);
       if (error) return err(400, error);
+      await notifyNewMessage(th, { id: payload.id, role: payload.role }, new URL(req.url).origin);
       return json({ message });
     }
     if (!isParent) return err(403, "Only a parent can start a new conversation.");
@@ -37,6 +39,7 @@ export default async (req) => {
     if (error) return err(400, error);
     const { error: msgErr } = await addMessage(thread.id, payload.id, body.message, true);
     if (msgErr) return err(400, msgErr);
+    await notifyNewMessage(thread, { id: payload.id, role: payload.role }, new URL(req.url).origin);
     return json({ thread });
   }
   return err(405, "Method not allowed.");

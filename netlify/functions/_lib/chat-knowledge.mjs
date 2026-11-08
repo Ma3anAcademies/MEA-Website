@@ -58,6 +58,7 @@ Timetable changes are updated in My MEA and families get a notification and an e
 
 MESSAGES, NOTIFICATIONS, ACCOUNT
 Messages: My MEA > Messages. Parents can message the MEA team and their child's assigned teachers. There is no private messaging between teachers and students, for safeguarding.
+New-message emails: when someone sends a parent a message in My MEA, the parent gets an email saying they have a new message (the message itself is read after signing in; no more than one email per conversation every 10 minutes). It can be turned off in Settings > Notifications > Messages. Teachers get the same email when a parent messages them.
 Notifications: My MEA > Notifications lists updates (enrolment decisions, invoices, timetable changes, announcements).
 Account Settings (My MEA > Settings) has four tabs: Profile (name, phone, WhatsApp), Security (change password), Notifications (email, messages, class and homework reminders, announcements), Privacy & consent (marketing emails on or off).
 Changing the email address on an account: contact the team.
