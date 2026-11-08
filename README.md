@@ -344,5 +344,12 @@ README.md                    this file
 ## Help chatbot
 A floating "Help" chat on the public site and parent portal (hidden for admin/teacher).
 - Works out of the box with built-in answers (no cost, no setup).
-- To make it answer with Claude, add `ANTHROPIC_API_KEY` in Netlify > Site configuration > Environment variables and redeploy. Optional `CHAT_MODEL` (default `claude-haiku-5-5`).
+- To make it answer with Google Gemini (free tier available), add `GEMINI_API_KEY` (optional `GEMINI_MODEL`, default `gemini-3.8-flash`, falling back to `gemini-flash-latest`). Gemini is used first if both keys are set.
+- To make it answer with Claude instead, add `ANTHROPIC_API_KEY` in Netlify > Site configuration > Environment variables and redeploy. Optional `CHAT_MODEL` (default `claude-haiku-5-5`).
 - Signed-out visitors are never told prices. Knowledge lives in `netlify/functions/_lib/chat-knowledge.mjs` (and the FAQs in `chat-faq.json`); built-in answers are in `public/js/chat.js`.
+
+## Message notification emails
+
+When someone receives a new message in My MEA (parent, teacher or admin), they get a short email saying so (it never contains the message text; they sign in to read it). It needs the Resend setup above. Rules: at most one email per conversation per 10 minutes, and parents/teachers can switch it off in Settings > Notifications > Messages.
+
+For the admin to get these, add a Netlify environment variable `ADMIN_NOTIFY_EMAIL` (the address MEA staff read, e.g. `info@meatuition.org.uk`).

@@ -20,7 +20,7 @@ Forms.changePw = (f, v) => {
   const u = me(), e = {}; if (u.pw !== hashPw(v.current, u.email)) e.current = 'That is not your current password.'; if (v.password.length < 8 || !/\d/.test(v.password)) e.password = 'Use at least 8 characters, including a number.'; if (v.confirm !== v.password) e.confirm = 'The passwords do not match.';
   if (!showErrors(f, e)) return; u.pw = hashPw(v.password, u.email); save(); f.reset(); toast('Password updated.');
 };
-Changes.notifPref = el => { me().notify[el.dataset.k] = el.checked; save(); toast('Preferences saved.'); };
+Changes.notifPref = el => { me().notify[el.dataset.k] = el.checked; save(); if (el.dataset.k === 'messages' && LIVE_BACKEND) api('notify-prefs', { method: 'POST', body: { messages: el.checked } }); toast('Preferences saved.'); };
 Changes.marketing = el => { me().marketing = el.checked; save(); toast('Preference saved.'); };
 
 /* ---------------- Notifications ---------------- */
