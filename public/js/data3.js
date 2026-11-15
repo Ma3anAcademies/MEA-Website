@@ -169,7 +169,8 @@ function hwStatus(hw, childId) {
 /* notifications / messages */
 const myNotifs = pid => S.notifications.filter(n => n.parentId === pid).sort((a, b) => b.date.localeCompare(a.date));
 const unreadNotifs = pid => myNotifs(pid).filter(n => !n.read).length;
-const myThreads = u => S.threads.filter(t => u.role === 'parent' ? t.parentId === u.id : t.staffId === u.id || (u.role === 'admin' && userById(t.staffId).role === 'admin')).sort((a, b) => b.messages[b.messages.length - 1].at.localeCompare(a.messages[a.messages.length - 1].at));
+const lastAt = t => (t.messages && t.messages.length ? t.messages[t.messages.length - 1].at : '') || '';
+const myThreads = u => S.threads.filter(t => u.role === 'parent' ? t.parentId === u.id : t.staffId === u.id || (u.role === 'admin' && userById(t.staffId).role === 'admin')).sort((a, b) => lastAt(b).localeCompare(lastAt(a)));
 const unreadThreads = u => myThreads(u).filter(t => u.role === 'parent' ? t.unreadParent : t.unreadStaff).length;
 function addNotif(parentId, type, childId, text, route) { S.notifications.push({ id: uid('nt'), parentId, type, childId, text, route, date: todayISO(), read: false }); }
 const familyDiscount = pid => SITE.siblingDiscount && childrenOf(pid).filter(c => enrolsOf(c.id, ['Active']).length).length >= 2 ? SITE.siblingDiscount : 0;
